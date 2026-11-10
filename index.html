@@ -107,11 +107,13 @@ button:focus-visible,input:focus-visible,select:focus-visible,.cell:focus-visibl
 @keyframes pulse{50%{transform:translateX(-50%) scale(1.06)}}
 .die3{position:absolute;width:8.4cqw;height:8.4cqw;left:0;top:0;transform-style:preserve-3d;will-change:transform}
 .cube{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}
-.face{position:absolute;inset:0;background:linear-gradient(145deg,#ffffff,#e9ebe4);border-radius:1.2cqw;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:1cqw;
-  box-shadow:inset 0 0 0 .12cqw rgba(0,0,0,.08),inset -.3cqw -.4cqw .8cqw rgba(0,0,0,.12);backface-visibility:hidden}
-.face i{width:1.65cqw;height:1.65cqw;border-radius:50%;background:radial-gradient(circle at 35% 35%,#2b3b61,#0b1630);place-self:center;visibility:hidden}
+.face{position:absolute;inset:0;background:#ffffff;border-radius:1.2cqw;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:1cqw;
+  box-shadow:inset 0 0 0 .15cqw #d9d9d9,inset -.25cqw -.3cqw .6cqw rgba(0,0,0,.08);backface-visibility:hidden}
+.face i{width:1.85cqw;height:1.85cqw;border-radius:50%;background:#000000;place-self:center;visibility:hidden}
 .face i.on{visibility:visible}
-.face.f1 i.on{background:radial-gradient(circle at 35% 35%,#e84a4a,#9c1414);width:1.9cqw;height:1.9cqw}
+.face.f1 i.on{width:2.4cqw;height:2.4cqw}
+.dres{position:absolute;left:50%;top:1.4cqw;transform:translateX(-50%);background:#ffffff;color:#000000;font:800 1.9cqw/1 var(--f-mono);padding:.7cqw 1.6cqw;border-radius:99px;box-shadow:0 .4cqw 1cqw rgba(0,0,0,.4);white-space:nowrap;opacity:0;transition:opacity .2s}
+.dres b{font-size:2.3cqw}
 .f1{transform:translateZ(4.2cqw)}.f6{transform:rotateY(180deg) translateZ(4.2cqw)}
 .f3{transform:rotateY(90deg) translateZ(4.2cqw)}.f4{transform:rotateY(-90deg) translateZ(4.2cqw)}
 .f2{transform:rotateX(90deg) translateZ(4.2cqw)}.f5{transform:rotateX(-90deg) translateZ(4.2cqw)}
@@ -356,6 +358,9 @@ const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
 const ROT={1:[0,0],6:[0,180],3:[0,-90],4:[0,90],2:[-90,0],5:[90,0]};
 const SAVE_KEY='pronat-e-kosoves-v2';
 const PEER_PREFIX='pronat-kosoves-';
+const PUBLIC_URL='https://monopoly-kosova.vercel.app/';
+const ONLINE_OK=/^https?:$/.test(location.protocol)&&/(vercel\.app|github\.io|localhost|127\.0\.0\.1)$/.test(location.hostname);
+const INVITE=new URLSearchParams(location.search).get('dhoma');
 const TR=[5,15,25,35], UT=[12,28];
 
 /* ======================= HELPERS ======================= */
@@ -796,7 +801,7 @@ function initBoard(){
     '<div class="tray" id="tray" data-hint="Prek zaret">'+
       '<div class="dsh" id="sh0"></div><div class="dsh" id="sh1"></div>'+
       [0,1].map(k=>'<div class="die3" id="die'+k+'"><div class="cube">'+[1,2,3,4,5,6].map(n=>'<div class="face f'+n+'">'+[...Array(9).keys()].map(q=>'<i class="'+(PIPS[n].includes(q)?'on':'')+'"></i>').join('')+'</div>').join('')+'</div></div>').join('')+
-      '<div class="hand" id="hand">'+HAND+'</div></div>'+
+      '<div class="hand" id="hand">'+HAND+'</div><div class="dres" id="dres" aria-live="polite"></div></div>'+
     '<div class="info" id="info"></div><div class="foot" id="foot"></div>';
   b.appendChild(c);
   centerEls={tray:c.querySelector('#tray'),info:c.querySelector('#info'),foot:c.querySelector('#foot')};
@@ -930,14 +935,15 @@ function placeDie(k,x,y,rz){
   d.style.transform='translate('+x+'px,'+y+'px)';
   s.style.transform='translate('+(x-size*0.03)+'px,'+(y+size*0.8)+'px)';
 }
+function showResult(v){const r=$('#dres');if(!r)return;if(!v){r.style.opacity=0;return}r.innerHTML=v[0]+' + '+v[1]+' = <b>'+(v[0]+v[1])+'</b>'+(v[0]===v[1]?' · dyshe':'');r.style.opacity=1}
 function restDice(v,instant){
-  if(!centerEls)return; const sp=restSpots();
+  if(!centerEls)return; const sp=restSpots(); showResult(st&&st.rollSeq?v:null);
   [0,1].forEach(k=>{$('#die'+k).style.opacity=1;$('#sh'+k).style.opacity=1});
   [0,1].forEach(k=>{placeDie(k,sp[k][0],sp[k][1]);$('#die'+k+' .cube').style.transform=cubeTf(v[k],[0,0,k?-12:9])});
 }
 async function animateRoll(v){
   if(reduced||document.hidden){restDice(v,true);sfx('land');return}
-  const tok=++rollToken; stopDiceAnims();
+  const tok=++rollToken; stopDiceAnims(); showResult(null);
   rollingAnim=true; renderCenterHint();
   const hand=$('#hand'),{w,h}=trayBox();
   const d0=$('#die0'),d1=$('#die1'),size=d0.offsetWidth||60;
@@ -987,6 +993,7 @@ async function animateRoll(v){
   });
   await Promise.all(anims);
   if(tok!==rollToken)return;
+  showResult(v);
   hand.getAnimations().forEach(x=>x.cancel()); hand.style.opacity=0;
   rollingAnim=false; renderCenterHint();
 }
@@ -1072,20 +1079,25 @@ function setupHTML(tab){
     '<div class="field" style="max-width:200px;margin-top:12px"><label for="np">Numri i lojtarëve</label><select id="np">'+[2,3,4,5,6].map(n=>'<option '+(n===3?'selected':'')+'>'+n+'</option>').join('')+'</select></div>'+
     '<div class="setup-grid">'+rows+'</div><div class="row"><button class="btn pri" data-ui="start">Fillo lojën</button></div>'};
   const online=()=>{
-    const code=new URLSearchParams(location.search).get('dhoma')||'';
     let myName='';try{myName=localStorage.getItem('pk-name')||''}catch(e){}
-    return '<p class="note">Secili lojtar luan nga telefoni ose kompjuteri i vet dhe mund të flisni me zë gjatë lojës. Falas, pa llogari.</p>'+
-    '<div class="field" style="margin-top:12px"><label for="on-name">Emri yt</label><input id="on-name" maxlength="16" value="'+esc(myName)+'" placeholder="p.sh. Arta"></div>'+
-    '<div class="row" style="margin-top:12px"><button class="btn pri" data-ui="host">Krijo dhomë të re</button></div>'+
-    '<p class="note" style="margin:14px 0 6px">ose hyr në dhomën e një shoku:</p>'+
-    '<div class="row"><input id="on-code" maxlength="6" value="'+esc(code)+'" placeholder="KODI" style="max-width:160px;text-transform:uppercase;font-family:var(--f-mono);letter-spacing:.15em"><button class="btn" data-ui="join">Hyr</button></div>'+
+    if(!ONLINE_OK)return '<p class="lead" style="font-weight:700">Lojët online luhen te faqja zyrtare.</p><p class="note">Hape faqen, krijo lojën dhe dërgoju shokëve linkun. Secili luan nga telefoni i vet dhe mund të flisni me zë.</p>'+
+      '<div class="row" style="margin-top:12px"><a class="btn pri" href="'+PUBLIC_URL+'" target="_blank" rel="noopener" style="text-decoration:none">Hap faqen zyrtare</a></div><p class="note" style="margin-top:8px">'+PUBLIC_URL.replace('https://','').replace(/\/$/,'')+'</p>';
+    if(INVITE)return '<p class="lead" style="font-weight:700;font-size:16px">Je ftuar në një lojë!</p><p class="note">Kodi i lojës</p><div class="big-code">'+esc(INVITE.toUpperCase())+'</div>'+
+      '<div class="field" style="margin-top:14px"><label for="on-name">Emri yt</label><input id="on-name" maxlength="16" value="'+esc(myName)+'" placeholder="p.sh. Arta" autocomplete="nickname"></div>'+
+      '<input id="on-code" type="hidden" value="'+esc(INVITE)+'"><div class="row" style="margin-top:14px"><button class="btn pri" data-ui="join" style="font-size:16px;padding:12px 22px">Hyr në lojë</button></div>'+
+      '<div class="netmsg" id="netmsg"></div>';
+    return '<p class="note">Krijo lojën, dërgoju shokëve linkun dhe secili luan nga telefoni ose kompjuteri i vet. Mund të flisni me zë gjatë lojës. Falas, pa llogari.</p>'+
+    '<div class="field" style="margin-top:12px"><label for="on-name">Emri yt</label><input id="on-name" maxlength="16" value="'+esc(myName)+'" placeholder="p.sh. Arta" autocomplete="nickname"></div>'+
+    '<div class="row" style="margin-top:12px"><button class="btn pri" data-ui="host" style="font-size:16px;padding:12px 22px">Krijo lojë dhe fto shokët</button></div>'+
+    '<p class="note" style="margin:16px 0 6px">Ke një kod nga një shok?</p>'+
+    '<div class="row"><input id="on-code" maxlength="6" placeholder="KODI" style="max-width:160px;text-transform:uppercase;font-family:var(--f-mono);letter-spacing:.15em"><button class="btn" data-ui="join">Hyr</button></div>'+
     '<div class="netmsg" id="netmsg"></div>'};
-  return '<h3>Lojë e re</h3><div class="tabs" role="tablist"><button role="tab" data-ui="tab" data-arg="local" aria-selected="'+(tab==='local')+'">Në këtë pajisje</button><button role="tab" data-ui="tab" data-arg="online" aria-selected="'+(tab==='online')+'">Online me shokë</button></div>'+
+  return '<h3>Lojë e re</h3><div class="tabs" role="tablist"><button role="tab" data-ui="tab" data-arg="online" aria-selected="'+(tab==='online')+'">Online me shokë</button><button role="tab" data-ui="tab" data-arg="local" aria-selected="'+(tab==='local')+'">Në këtë pajisje</button></div>'+
     (tab==='local'?local():online())+(st&&role==='offline'?'<div class="row" style="margin-top:12px"><button class="btn sm" data-ui="close">Anulo</button></div>':'');
 }
 function openSetup(tab){
   if(net&&role!=='offline'&&!(st&&st.online)){openLobby();return}
-  modalState={k:'setup',tab:tab||'local'};
+  modalState={k:'setup',tab:tab||(ONLINE_OK?'online':'local')};
   showModal(setupHTML(modalState.tab));
   const np=$('#np'); if(np)np.addEventListener('change',e=>{const n=+e.target.value;for(let k=0;k<6;k++)$('#sr'+k).hidden=k>=n});
 }
@@ -1215,7 +1227,7 @@ async function joinRoom(){
   net={peer,code,conns:{},members:[],voice:{calls:{},on:false},host:null,note:'',myName:name};
   peer.on('open',id=>{
     myDev=id; const c=peer.connect(PEER_PREFIX+code,{reliable:true}); net.host=c;
-    c.on('open',()=>{c.send({t:'hello',name});net.joined=true;openLobby()});
+    c.on('open',()=>{c.send({t:'hello',name});net.joined=true;try{sessionStorage.setItem('pk-join',JSON.stringify({code,name}))}catch(e){}openLobby()});
     c.on('data',onGuestData);
     c.on('close',()=>{toastRoom('Lidhja me krijuesin e dhomës u ndërpre.');if(modalState&&modalState.k==='lobby')openLobby()});
   });
@@ -1236,7 +1248,10 @@ function leaveNet(){
   try{net.peer.destroy()}catch(e){}
   net=null; role='offline'; myDev='local'; renderRoom();
 }
-function inviteLink(){const u=new URL(location.href);u.search='?dhoma='+net.code;u.hash='';return u.toString()}
+function inviteLink(){if(!ONLINE_OK)return PUBLIC_URL+'?dhoma='+net.code;const u=new URL(location.href);u.search='?dhoma='+net.code;u.hash='';return u.toString()}
+function inviteText(){return 'Eja luajmë Pronat e Kosovës! Kodi: '+net.code+' '+inviteLink()}
+function shareRow(){const t=encodeURIComponent(inviteText());return '<div class="row" style="margin:10px 0"><a class="btn" style="text-decoration:none;background:#1c8f45;border-color:#1c8f45;color:#fff" href="https://wa.me/?text='+t+'" target="_blank" rel="noopener">WhatsApp</a>'+
+  '<a class="btn" style="text-decoration:none;background:#6a55e8;border-color:#6a55e8;color:#fff" href="viber://forward?text='+t+'">Viber</a>'+(navigator.share?'<button class="btn" data-ui="shareLink">Ndaj…</button>':'')+'<button class="btn" data-ui="copyLink">Kopjo linkun</button><span class="note" id="copied"></span></div>'}
 function openLobby(){
   if(!net)return; modalState={k:'lobby'};
   const host=role==='host';
@@ -1244,7 +1259,7 @@ function openLobby(){
   const humans=net.members.length;
   showModal('<button class="btn sm x" data-ui="close">Mbyll</button><h3>Dhoma online</h3>'+
     '<p class="note">Kodi i dhomës</p><div class="big-code">'+esc(net.code||'…')+'</div>'+
-    '<div class="row" style="margin:10px 0"><button class="btn sm" data-ui="copyLink">Kopjo linkun e ftesës</button><span class="note" id="copied"></span></div>'+
+    '<p class="note" style="margin-top:10px">Dërgoju shokëve këtë link. Kur e hapin, hyjnë direkt në lojën tënde.</p>'+shareRow()+
     '<input readonly id="invite" value="'+esc(net.code?inviteLink():'')+'" aria-label="Linku i ftesës" style="font-size:12px">'+
     '<h2 style="margin-top:16px;font-family:var(--f-display);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Në dhomë</h2><div class="members">'+mem+'</div>'+
     voiceButtons()+
@@ -1349,6 +1364,7 @@ const UI={
   copyLink:()=>{const l=net&&net.code?inviteLink():'';const done=()=>{const c=$('#copied');if(c)c.textContent='U kopjua.';else toastRoom('Linku u kopjua.')};
     try{navigator.clipboard.writeText(l).then(done,()=>{const i=$('#invite');if(i){i.select()}else toastRoom(l)})}catch(e){toastRoom(l)}},
   leave:()=>{leaveNet();if(st&&st.online){newGame([{name:'Ti',bot:false},{name:'Arbeni',bot:true},{name:'Drita',bot:true}],false);openSetup('online')}},
+  shareLink:()=>{try{navigator.share({title:'Pronat e Kosovës',text:'Eja luajmë Pronat e Kosovës! Kodi: '+net.code,url:inviteLink()}).catch(()=>{})}catch(e){}},
   voiceOn:joinVoice, voiceOff:()=>leaveVoice(false), mute:toggleMute,
   sound:()=>{soundOn=!soundOn;try{localStorage.setItem('pk-sound',soundOn?'1':'0')}catch(e){}$('#sndBtn').textContent='Efektet: '+(soundOn?'po':'jo')},
 };
@@ -1367,6 +1383,7 @@ document.addEventListener('keydown',e=>{
     else if(e.target.id==='tray'&&canRollNow()){e.preventDefault();doAction('roll')}
   }
 });
+addEventListener('beforeunload',e=>{if(role==='host'&&net){e.preventDefault();e.returnValue=''}});
 addEventListener('resize',()=>{if(st&&!rollingAnim)restDice(st.dice,true)});
 $('#sndBtn').textContent='Efektet: '+(soundOn?'po':'jo');
 
@@ -1378,7 +1395,9 @@ $('#sndBtn').textContent='Efektet: '+(soundOn?'po':'jo');
   if(saved&&saved.winner==null&&saved.players&&!saved.online&&!invite){st=saved;shownRoll=null;render();}
   else{
     newGame([{name:'Ti',bot:false},{name:'Arbeni',bot:true},{name:'Drita',bot:true}],false);
-    openSetup(invite?'online':'local');
+    openSetup(invite||ONLINE_OK?'online':'local');
+    let rj=null;try{rj=JSON.parse(sessionStorage.getItem('pk-join')||'null')}catch(e){}
+    if(invite&&ONLINE_OK&&rj&&rj.code===invite.toUpperCase()&&rj.name&&$('#on-name')){$('#on-name').value=rj.name;joinRoom()}
   }
 })();
 </script>

@@ -9,10 +9,10 @@ Open `index.html`, or the hosted page once GitHub Pages is switched on (see belo
 - **Online with friends:** go to *Lojë e re → Online me shokë*, create a room and send your friends the code or the invite link. Each person plays on their own phone or laptop. Press **Fol me zë** to talk by voice while you play. It's free and needs no accounts: the connection is peer-to-peer over WebRTC, set up through the free PeerJS server.
 - **Dice:** tap the dice tray in the middle of the board. A hand shakes the dice and throws them onto the board, with sound effects you can turn off.
 
-## Free hosting (needed for online play and voice)
-1. On GitHub open **Settings → Pages**.
-2. Under **Build and deployment**, choose *Deploy from a branch*, pick this branch and the `/ (root)` folder, then press **Save**.
-3. After a minute the game is live at `https://learti82.github.io/monopoly-kosova/`. Send that link to your friends.
+## Official site
+The game is live at **https://monopoly-kosova.vercel.app/**. Vercel deploys every push to this branch automatically.
+
+To start an online match, open the site, enter your name and press **Krijo lojë dhe fto shokët**. Send the invite link by WhatsApp or Viber, or copy it. Friends who open the link just type their name and press **Hyr në lojë**.
 
 The person who creates the room must keep their page open: their device runs the game, and everyone else connects to it. If someone drops out, a computer player takes their seat until they rejoin with the same name.
 

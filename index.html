@@ -1,0 +1,912 @@
+<!doctype html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<style>[hidden]{display:none!important}body{margin:0}</style>
+</head>
+<body>
+<title>Pronat e Kosovës</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@600;800&family=Manrope:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Layout: physical board (11x11 grid, fixed paper look) on the left, a control desk on the right; stacks on phones. */
+:root{
+  --bg:#e9efeb; --panel:#ffffff; --panel-2:#f3f6f4; --ink:#13203a; --muted:#5b6779; --line:#d3dcd6;
+  --accent:#244aa5; --accent-ink:#ffffff; --gold:#c9971f; --danger:#c62f2f; --ok:#1f8a4c;
+  /* board is a printed object: same in both themes */
+  --tile:#dcebe1; --tile-ink:#13203a; --frame:#13203a; --flag:#244aa5; --flag-gold:#d9a92a;
+  --f-display:"Unbounded", "Arial Black", system-ui, sans-serif;
+  --f-body:"Manrope", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:"JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0d1322; --panel:#151e33; --panel-2:#1b263f; --ink:#e7ecf5; --muted:#9aa5ba; --line:#28344e;
+  --accent:#6d93ec; --accent-ink:#0b1120; --gold:#e6bb4c; --danger:#ff6b6b; --ok:#4cc483; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#0d1322; --panel:#151e33; --panel-2:#1b263f; --ink:#e7ecf5; --muted:#9aa5ba; --line:#28344e;
+  --accent:#6d93ec; --accent-ink:#0b1120; --gold:#e6bb4c; --danger:#ff6b6b; --ok:#4cc483; color-scheme:dark }
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.45}
+*{box-sizing:border-box}
+button{font:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,.cell:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+
+.app{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;max-width:1400px;margin:0 auto;
+  padding-block:16px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));align-items:start}
+.board-wrap{display:flex;justify-content:center;min-width:0}
+@media (max-width:960px){.app{grid-template-columns:minmax(0,1fr)}}
+
+/* ---------- board ---------- */
+.board{container-type:inline-size;width:min(100%,calc(100vh - 32px));aspect-ratio:1;max-width:100%;
+  display:grid;grid-template-columns:1.6fr repeat(9,1fr) 1.6fr;grid-template-rows:1.6fr repeat(9,1fr) 1.6fr;
+  background:var(--frame);gap:1px;border:3px solid var(--frame);border-radius:6px;box-shadow:0 18px 40px -18px rgba(10,20,40,.55);color:var(--tile-ink)}
+@media (max-width:960px){.board{width:min(100%,720px)}}
+.cell{background:var(--tile);position:relative;display:flex;overflow:hidden;cursor:pointer;min-width:0;min-height:0}
+.cell:hover{filter:brightness(1.04)}
+.cell.b{flex-direction:column}.cell.t{flex-direction:column-reverse}.cell.l{flex-direction:row-reverse}.cell.r{flex-direction:row}
+.bar{flex:0 0 auto;display:flex;align-items:center;justify-content:center;gap:.25cqw;border-color:var(--frame)}
+.cell.b .bar,.cell.t .bar{height:2.1cqw}
+.cell.l .bar,.cell.r .bar{width:2.1cqw;flex-direction:column}
+.cell.b .bar{border-bottom:1px solid}.cell.t .bar{border-top:1px solid}.cell.l .bar{border-left:1px solid}.cell.r .bar{border-right:1px solid}
+.house{width:1.1cqw;height:1.1cqw;background:#1d9a4a;border:1px solid #0c3a1d;border-radius:1px}
+.hotel{width:2.2cqw;height:1.2cqw;background:#d42a2a;border:1px solid #5a0c0c;border-radius:1px}
+.cell.l .hotel,.cell.r .hotel{width:1.2cqw;height:2.2cqw}
+.body{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:space-between;text-align:center;padding:.45cqw .3cqw;min-width:0;gap:.2cqw}
+.nm{font-weight:800;font-size:1.12cqw;line-height:1.08;text-transform:uppercase;letter-spacing:.01em;overflow-wrap:anywhere;hyphens:auto}
+.pr{font-family:var(--f-mono);font-size:1.05cqw;font-weight:700}
+.ico{width:3.4cqw;height:3.4cqw;flex:0 0 auto}
+.ico svg{width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.q{font-family:var(--f-display);font-size:4cqw;line-height:1;color:#d63c96}
+.owner{position:absolute;pointer-events:none}
+.cell.b .owner{left:0;right:0;bottom:0;height:.7cqw}.cell.t .owner{left:0;right:0;top:0;height:.7cqw}
+.cell.l .owner{top:0;bottom:0;left:0;width:.7cqw}.cell.r .owner{top:0;bottom:0;right:0;width:.7cqw}
+.mort{position:absolute;inset:0;background:repeating-linear-gradient(135deg,rgba(19,32,58,.0) 0 6px,rgba(19,32,58,.16) 6px 12px);pointer-events:none}
+.mort::after{content:"HIPOTEKË";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) rotate(-28deg);font-size:.95cqw;font-weight:800;color:#a01c1c;background:#fff7;padding:0 .3cqw}
+.tokens{position:absolute;inset:auto .3cqw .3cqw .3cqw;display:flex;flex-wrap:wrap;gap:.25cqw;justify-content:center;pointer-events:none;z-index:2}
+.cell.c .tokens{inset:auto 0 .8cqw 0}
+.tok{width:2.3cqw;height:2.3cqw;border-radius:50%;border:.25cqw solid #fff;box-shadow:0 .2cqw .5cqw rgba(0,0,0,.45);display:grid;place-items:center;
+  font:800 1.1cqw/1 var(--f-body);color:#fff;transition:transform .12s}
+.tok.now{transform:scale(1.25);box-shadow:0 0 0 .3cqw var(--flag-gold),0 .2cqw .5cqw rgba(0,0,0,.45)}
+.tok.jailed{border-color:#13203a;border-style:dashed}
+.cell.hl{box-shadow:inset 0 0 0 .4cqw var(--flag-gold)}
+
+/* corners */
+.corner{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:.6cqw;gap:.3cqw}
+.corner .big{font-family:var(--f-display);font-weight:800;font-size:2.2cqw;line-height:1}
+.corner .sm{font-size:.95cqw;font-weight:700;text-transform:uppercase;line-height:1.1}
+.go .big{font-size:3.2cqw;color:#c62f2f}
+.go .arrow{width:9cqw;height:1.6cqw}
+.jailbox{width:65%;aspect-ratio:1;background:#f39a1e;border:1px solid var(--frame);display:grid;place-items:center;align-self:flex-end;margin:0 0 0 auto;position:relative}
+.jailbox::before{content:"";position:absolute;inset:18%;background:repeating-linear-gradient(90deg,#13203a 0 .35cqw,transparent .35cqw 1.6cqw);opacity:.75}
+.jailbox span{position:relative;font-family:var(--f-display);font-size:1.3cqw;font-weight:800;background:#f39a1e;padding:0 .3cqw}
+.jail{flex-direction:column;padding:0}
+.jail .vv{font-size:1cqw;font-weight:800;text-transform:uppercase;padding:.3cqw;text-align:left;width:100%}
+
+/* center */
+.center{grid-area:2/2/11/11;background:radial-gradient(120% 90% at 30% 20%,#2f5cc4 0%,var(--flag) 55%,#183478 100%);color:#fff;
+  display:grid;grid-template-rows:auto 1fr auto;padding:3cqw;gap:2cqw;position:relative;overflow:hidden}
+.center .stars{display:flex;gap:1cqw;justify-content:center}
+.center .stars svg{width:2.2cqw;height:2.2cqw;fill:#fff}
+.title{text-align:center}
+.title h1{font-family:var(--f-display);font-weight:800;font-size:5.6cqw;line-height:.95;margin:.8cqw 0 0;color:var(--flag-gold);letter-spacing:-.01em;text-wrap:balance}
+.title p{margin:.8cqw 0 0;font-size:1.5cqw;letter-spacing:.22em;text-transform:uppercase;opacity:.85}
+.mid{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2cqw;min-height:0}
+.dice{display:flex;gap:2.2cqw}
+.die{width:8cqw;height:8cqw;background:#fff;border-radius:1.4cqw;display:grid;grid-template:repeat(3,1fr)/repeat(3,1fr);padding:1.1cqw;box-shadow:0 .8cqw 1.6cqw rgba(0,0,0,.35)}
+.die i{width:1.6cqw;height:1.6cqw;border-radius:50%;background:#13203a;place-self:center;visibility:hidden}
+.die i.on{visibility:visible}
+.die.roll{animation:shake .5s}
+@keyframes shake{0%{transform:rotate(0)}25%{transform:rotate(-18deg) scale(.92)}50%{transform:rotate(14deg)}75%{transform:rotate(-8deg)}100%{transform:rotate(0)}}
+@media (prefers-reduced-motion:reduce){.die.roll{animation:none}.tok{transition:none}}
+.msg{font-size:1.9cqw;font-weight:700;text-align:center;max-width:44cqw;text-wrap:balance}
+.card{background:#fff;color:#13203a;border-radius:1cqw;padding:1.6cqw 2cqw;max-width:42cqw;text-align:center;box-shadow:0 1cqw 2cqw rgba(0,0,0,.35);transform:rotate(-2deg)}
+.card .k{font-family:var(--f-display);font-size:1.5cqw;letter-spacing:.12em;text-transform:uppercase}
+.card.sh .k{color:#d63c96}.card.ch .k{color:#1f6fb0}
+.card p{margin:.6cqw 0 0;font-size:1.8cqw;font-weight:700;line-height:1.25}
+.foot{display:flex;justify-content:space-between;font-size:1.3cqw;opacity:.8;font-family:var(--f-mono)}
+
+/* ---------- side desk ---------- */
+.desk{display:flex;flex-direction:column;gap:14px;min-width:0}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;min-width:0}
+.panel h2{font-family:var(--f-display);font-size:12px;letter-spacing:.14em;text-transform:uppercase;margin:0 0 10px;color:var(--muted);font-weight:600}
+.top{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.brand{font-family:var(--f-display);font-weight:800;font-size:18px;letter-spacing:-.01em}
+.brand b{color:var(--gold)}
+.links{display:flex;gap:6px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:9px;padding:9px 13px;font-weight:700;line-height:1.1}
+.btn:hover:not(:disabled){border-color:var(--accent)}
+.btn.pri{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.gold{background:var(--gold);color:#1a1405;border-color:var(--gold)}
+.btn.dan{background:transparent;color:var(--danger);border-color:var(--danger)}
+.btn.sm{padding:6px 10px;font-size:13px}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.players{display:flex;flex-direction:column;gap:8px}
+.pl{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:8px 10px;border-radius:10px;border:1px solid transparent}
+.pl.cur{border-color:var(--accent);background:var(--panel-2)}
+.pl.out{opacity:.45;text-decoration:line-through}
+.pl .dot{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;color:#fff;font-weight:800;font-size:12px;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.35)}
+.pl .nm2{font-weight:800;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pl .sub{font-size:12px;color:var(--muted)}
+.money{font-family:var(--f-mono);font-weight:700;font-variant-numeric:tabular-nums}
+.chips{display:flex;flex-wrap:wrap;gap:3px;margin-top:4px}
+.chip{width:10px;height:14px;border-radius:2px;border:1px solid rgba(0,0,0,.25)}
+.chip.m{opacity:.35}
+.act p{margin:0 0 10px}
+.act .lead{font-size:15px;font-weight:700}
+.act .note{font-size:13px;color:var(--muted)}
+.props{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
+.pchip{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:999px;padding:4px 10px 4px 6px;font-size:12px;font-weight:700}
+.pchip i{width:10px;height:10px;border-radius:50%;display:block}
+.pchip.m{opacity:.55;text-decoration:line-through}
+.log{max-height:240px;overflow:auto;font-size:13px;display:flex;flex-direction:column;gap:4px;padding-right:4px}
+.log div{padding:4px 0;border-bottom:1px solid var(--line)}
+.log div:last-child{border:0}
+.badge{display:inline-block;font-size:11px;font-weight:800;padding:1px 7px;border-radius:999px;background:var(--panel-2);border:1px solid var(--line);color:var(--muted);vertical-align:middle}
+.badge.j{color:#fff;background:#d27d0c;border-color:#d27d0c}
+.badge.b{color:var(--accent);border-color:var(--accent)}
+
+/* ---------- modal ---------- */
+.ov{position:fixed;inset:0;background:rgba(8,14,28,.62);display:grid;place-items:center;z-index:50;
+  padding:max(16px,env(safe-area-inset-top,0px)) max(16px,env(safe-area-inset-right,0px)) max(16px,env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
+.modal{background:var(--panel);color:var(--ink);border-radius:14px;width:min(560px,100%);max-height:calc(100vh - 32px);overflow:auto;padding:20px;border:1px solid var(--line);box-shadow:0 30px 60px -20px rgba(0,0,0,.6)}
+.modal h3{font-family:var(--f-display);font-size:20px;margin:0 0 6px;text-wrap:balance}
+.modal .x{float:right}
+.deed{border:2px solid #13203a;border-radius:8px;overflow:hidden;background:#fff;color:#13203a;margin:12px 0}
+.deed .hd{padding:12px;text-align:center}
+.deed .hd small{display:block;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700}
+.deed .hd strong{display:block;font-family:var(--f-display);font-size:18px;text-transform:uppercase;line-height:1.1;margin-top:2px}
+.deed table{width:100%;border-collapse:collapse;font-size:14px}
+.deed td{padding:5px 14px}
+.deed td:last-child{text-align:right;font-family:var(--f-mono);font-weight:700;font-variant-numeric:tabular-nums}
+.deed tr.sep td{border-top:1px solid #c9d2cc}
+.deed tr.on td{background:#fff3c4}
+.setup-grid{display:flex;flex-direction:column;gap:8px;margin:14px 0}
+.srow{display:grid;grid-template-columns:22px minmax(0,1fr) 140px;gap:8px;align-items:center}
+.srow input,.srow select,.field select,.field input{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);font:inherit}
+.field{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:700}
+.tcols{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:12px 0}
+@media (max-width:520px){.tcols{grid-template-columns:1fr}.srow{grid-template-columns:22px minmax(0,1fr) 110px}}
+.tcol{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.tcol label.pp{display:flex;gap:8px;align-items:center;font-size:13px}
+.tcol label.pp i{width:10px;height:10px;border-radius:2px;flex:0 0 auto}
+.rules{font-size:14px}
+.rules h4{margin:14px 0 4px;font-family:var(--f-display);font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.rules p,.rules li{max-width:65ch}
+.rules ul{padding-left:18px;margin:4px 0}
+.win{text-align:center}
+.win .big{font-family:var(--f-display);font-size:30px;color:var(--gold)}
+</style>
+
+<div class="app">
+  <div class="board-wrap"><div class="board" id="board" aria-label="Tabela e lojës"></div></div>
+  <aside class="desk">
+    <div class="top">
+      <div class="brand">Pronat e <b>Kosovës</b></div>
+      <div class="links">
+        <button class="btn sm" data-act="rules">Rregullat</button>
+        <button class="btn sm" data-act="setup">Lojë e re</button>
+      </div>
+    </div>
+    <section class="panel act" id="act" aria-live="polite"></section>
+    <section class="panel"><h2>Lojtarët</h2><div class="players" id="players"></div></section>
+    <section class="panel"><h2>Ngjarjet</h2><div class="log" id="log"></div></section>
+  </aside>
+</div>
+<div id="modal"></div>
+
+<script>
+/* ======================= DATA ======================= */
+const GR={br:{c:'#8a5a3c',h:50,n:'Kafe'},lb:{c:'#9fd4f0',h:50,n:'Qiell'},pk:{c:'#d63c96',h:100,n:'Rozë'},or:{c:'#f39a1e',h:100,n:'Portokalli'},
+  rd:{c:'#e3242b',h:150,n:'E kuqe'},ye:{c:'#f4d21a',h:150,n:'E verdhë'},gr:{c:'#1fa64a',h:200,n:'E gjelbër'},db:{c:'#1f4fa0',h:200,n:'Blu'}};
+const S=[
+ {t:'go',n:'Nisu'},
+ {t:'st',n:'Podujeva',g:'br',p:60,r:[2,10,30,90,160,250]},
+ {t:'ch',n:'Arka e Komunitetit'},
+ {t:'st',n:'Mitrovica',g:'br',p:60,r:[4,20,60,180,320,450]},
+ {t:'tax',n:'Bëj një donacion',amt:200,ic:'tax'},
+ {t:'tr',n:'Biçikleta',p:200,ic:'bike'},
+ {t:'st',n:'Vitia',g:'lb',p:100,r:[6,30,90,270,400,550]},
+ {t:'sh',n:'Shans'},
+ {t:'st',n:'Kamenica',g:'lb',p:100,r:[6,30,90,270,400,550]},
+ {t:'st',n:'Gjilani',g:'lb',p:120,r:[8,40,100,300,450,600]},
+ {t:'jail',n:'Burgu'},
+ {t:'st',n:'Rahoveci',g:'pk',p:140,r:[10,50,150,450,625,750]},
+ {t:'ut',n:'Kompania Elektrike',p:150,ic:'bulb'},
+ {t:'st',n:'Malisheva',g:'pk',p:140,r:[10,50,150,450,625,750]},
+ {t:'st',n:'Ferizaj',g:'pk',p:160,r:[12,60,180,500,700,900]},
+ {t:'tr',n:'Treni',p:200,ic:'train'},
+ {t:'st',n:'Brezovica',g:'or',p:180,r:[14,70,200,550,750,950]},
+ {t:'ch',n:'Arka e Komunitetit'},
+ {t:'st',n:'Ujëvarat e Mirushës',g:'or',p:180,r:[14,70,200,550,750,950]},
+ {t:'st',n:'Gryka e Rugovës',g:'or',p:200,r:[16,80,220,600,800,1000]},
+ {t:'park',n:'Parkim falas'},
+ {t:'st',n:'Deçani',g:'rd',p:220,r:[18,90,250,700,875,1050]},
+ {t:'sh',n:'Shans'},
+ {t:'st',n:'Gjakova',g:'rd',p:220,r:[18,90,250,700,875,1050]},
+ {t:'st',n:'Peja',g:'rd',p:240,r:[20,100,300,750,925,1100]},
+ {t:'tr',n:'Autobusi',p:200,ic:'bus'},
+ {t:'st',n:'Shadërvani',g:'ye',p:260,r:[22,110,330,800,975,1150]},
+ {t:'st',n:'Ura e Gurit',g:'ye',p:260,r:[22,110,330,800,975,1150]},
+ {t:'ut',n:'Ujësjellësi',p:150,ic:'tap'},
+ {t:'st',n:'Kalaja e Prizrenit',g:'ye',p:280,r:[24,120,360,850,1025,1200]},
+ {t:'gojail',n:'Shko në burg'},
+ {t:'st',n:'Parku i Gërmisë',g:'gr',p:300,r:[26,130,390,900,1100,1275]},
+ {t:'st',n:'Sheshi Skënderbeu',g:'gr',p:300,r:[26,130,390,900,1100,1275]},
+ {t:'ch',n:'Arka e Komunitetit'},
+ {t:'st',n:'Monumenti Newborn',g:'gr',p:320,r:[28,150,450,1000,1200,1400]},
+ {t:'tr',n:'Aeroplani',p:200,ic:'plane'},
+ {t:'sh',n:'Shans'},
+ {t:'st',n:'Biblioteka Kombëtare',g:'db',p:350,r:[35,175,500,1100,1300,1500]},
+ {t:'tax',n:'Investo në biznes',amt:100,ic:'tax'},
+ {t:'st',n:'Bulevardi Nënë Tereza',g:'db',p:400,r:[50,200,600,1400,1700,2000]},
+];
+const CARDS={
+ sh:[
+  {x:'Shko te NISU. Merr €200.',a:'to',v:0},
+  {x:'Shko te Bulevardi Nënë Tereza.',a:'to',v:39},
+  {x:'Shko te Peja. Nëse kalon NISU, merr €200.',a:'to',v:24},
+  {x:'Shko te Rahoveci. Nëse kalon NISU, merr €200.',a:'to',v:11},
+  {x:'Udhëto me Trenin. Nëse kalon NISU, merr €200.',a:'to',v:15},
+  {x:'Shko te transporti më i afërt. Nëse ka pronar, paguaj qiranë dyfish.',a:'ntr'},
+  {x:'Shko te transporti më i afërt. Nëse ka pronar, paguaj qiranë dyfish.',a:'ntr'},
+  {x:'Shko te shërbimi komunal më i afërt. Nëse ka pronar, hidh zaret dhe paguaj 10× rezultatin.',a:'nut'},
+  {x:'Banka të paguan dividentë prej €50.',a:'m',v:50},
+  {x:'Dil nga burgu falas. Mbaje këtë letër derisa ta përdorësh.',a:'jc'},
+  {x:'Kthehu 3 hapësira prapa.',a:'back'},
+  {x:'Shko në burg. Mos kalo NISU, mos merr €200.',a:'jail'},
+  {x:'Riparime të përgjithshme: paguaj €25 për çdo shtëpi dhe €100 për çdo hotel.',a:'rep',v:[25,100]},
+  {x:'Gjobë për tejkalim shpejtësie në autostradën Prishtinë–Prizren: €15.',a:'m',v:-15},
+  {x:'U zgjodhe kryetar i bordit. Paguaj çdo lojtari €50.',a:'pe',v:50},
+  {x:'Kredia jote e ndërtimit maturohet. Merr €150.',a:'m',v:150},
+ ],
+ ch:[
+  {x:'Shko te NISU. Merr €200.',a:'to',v:0},
+  {x:'Gabim i bankës në favorin tënd. Merr €200.',a:'m',v:200},
+  {x:'Vizitë te mjeku. Paguaj €50.',a:'m',v:-50},
+  {x:'Shite aksionet. Merr €50.',a:'m',v:50},
+  {x:'Dil nga burgu falas. Mbaje këtë letër derisa ta përdorësh.',a:'jc'},
+  {x:'Shko në burg. Mos kalo NISU, mos merr €200.',a:'jail'},
+  {x:'Fondi i pushimeve maturohet. Merr €100.',a:'m',v:100},
+  {x:'Rimbursim tatimi. Merr €20.',a:'m',v:20},
+  {x:'Është ditëlindja jote! Merr €10 nga çdo lojtar.',a:'ce',v:10},
+  {x:'Sigurimi i jetës maturohet. Merr €100.',a:'m',v:100},
+  {x:'Paguaj faturën e spitalit: €100.',a:'m',v:-100},
+  {x:'Paguaj shkollimin: €50.',a:'m',v:-50},
+  {x:'Merr tarifë konsulence: €25.',a:'m',v:25},
+  {x:'Riparime rrugësh: paguaj €40 për çdo shtëpi dhe €115 për çdo hotel.',a:'rep',v:[40,115]},
+  {x:'Fitove vendin e dytë në festivalin e flijes. Merr €10.',a:'m',v:10},
+  {x:'Trashëgon €100.',a:'m',v:100},
+ ]};
+const PCOL=['#e63946','#1d7fd6','#22a05a','#ef9f0f','#8e44ad','#0f9ea8'];
+const ICON={
+ bike:'<circle cx="6" cy="16" r="4"/><circle cx="18" cy="16" r="4"/><path d="M6 16l4-8h5l3 8M10 8l2 8H6M13 5h3"/>',
+ train:'<rect x="5" y="3" width="14" height="14" rx="3"/><path d="M5 10h14M8 21l2-4M16 21l-2-4"/><circle cx="9" cy="13.5" r=".8"/><circle cx="15" cy="13.5" r=".8"/>',
+ bus:'<rect x="3" y="4" width="18" height="13" rx="2"/><path d="M3 10h18M9 4v6M15 4v6"/><circle cx="7" cy="19" r="2"/><circle cx="17" cy="19" r="2"/>',
+ plane:'<path d="M21 16v-2l-8-5V3.5a1.5 1.5 0 0 0-3 0V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5z"/>',
+ bulb:'<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z"/>',
+ tap:'<path d="M3 8h9a4 4 0 0 1 4 4v2h3v-4a6 6 0 0 0-6-6H3zM7 4V2M5 2h4M17.5 17v1.5M17.5 21v.5"/>',
+ chest:'<rect x="3" y="9" width="18" height="11" rx="1"/><path d="M3 13h18M10 13v3h4v-3M4 9a8 5 0 0 1 16 0"/>',
+ tax:'<circle cx="12" cy="12" r="9"/><path d="M15.5 8.6a4 4 0 1 0 0 6.8M7 11h6M7 13.5h6"/>',
+};
+const STAR='<svg viewBox="0 0 24 24"><path d="M12 2l2.9 6.9 7.1.6-5.4 4.7 1.6 7.1L12 17.6 5.8 21.3l1.6-7.1L2 9.5l7.1-.6z"/></svg>';
+const PIPS={1:[4],2:[0,8],3:[0,4,8],4:[0,2,6,8],5:[0,2,4,6,8],6:[0,2,3,5,6,8]};
+const SAVE_KEY='pronat-e-kosoves-v1';
+
+/* ======================= HELPERS ======================= */
+const $=s=>document.querySelector(s);
+const eur=n=>'€'+n.toLocaleString('de-DE');
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+const d6=()=>1+Math.floor(Math.random()*6);
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+const ownable=i=>['st','tr','ut'].includes(S[i].t);
+const groupOf=g=>S.map((s,i)=>s.g===g?i:-1).filter(i=>i>=0);
+const TR=[5,15,25,35], UT=[12,28];
+
+let st=null, busy=false, botTimer=null, rolling=false, modalState=null;
+
+function P(i){return st.players[i]}
+function curP(){return st.players[st.cur]}
+function own(i){return st.own[i]}
+function log(t){st.log.unshift(t);if(st.log.length>80)st.log.length=80}
+function pname(i){return '<b style="color:'+st.players[i].color+'">'+esc(st.players[i].name)+'</b>'}
+function active(){return st.players.map((p,i)=>i).filter(i=>!st.players[i].out)}
+function ownsAll(pi,g){return groupOf(g).every(i=>st.own[i]&&st.own[i].o===pi)}
+function groupHasBuildings(g){return g&&groupOf(g).some(i=>st.own[i]&&st.own[i].h>0)}
+function propsOf(pi){return Object.keys(st.own).map(Number).filter(i=>st.own[i].o===pi).sort((a,b)=>a-b)}
+
+/* ======================= RENT ======================= */
+function rentOf(i,opt={}){
+  const s=S[i],o=st.own[i]; if(!o||o.m) return 0;
+  if(s.t==='st'){ if(o.h>0) return s.r[o.h]; return s.r[0]*(ownsAll(o.o,s.g)?2:1); }
+  if(s.t==='tr'){ const n=TR.filter(k=>st.own[k]&&st.own[k].o===o.o).length; return 25*Math.pow(2,n-1)*(opt.trMult||1); }
+  if(s.t==='ut'){ const n=UT.filter(k=>st.own[k]&&st.own[k].o===o.o).length; const roll=opt.utilRoll||st.dice[0]+st.dice[1]; const mult=opt.util10?10:(n===2?10:4); return roll*mult; }
+  return 0;
+}
+
+/* ======================= GAME SETUP ======================= */
+function newGame(cfg){
+  st={players:cfg.map((c,i)=>({name:c.name,bot:c.bot,color:PCOL[i],money:1500,pos:0,jail:false,jailTurns:0,cards:[],out:false})),
+    own:{},cur:0,phase:'roll',dbl:0,again:false,dice:[3,4],log:[],
+    decks:{sh:shuffle([...Array(CARDS.sh.length).keys()]),ch:shuffle([...Array(CARDS.ch.length).keys()])},
+    pend:null,houses:32,hotels:12,msg:'',card:null,winner:null,turnNo:1};
+  log('Loja filloi. Secili lojtar merr '+eur(1500)+'.');
+  st.msg=esc(curP().name)+' fillon i pari.';
+  closeModal(); render();
+}
+function save(){try{localStorage.setItem(SAVE_KEY,JSON.stringify(st))}catch(e){}}
+function loadSaved(){try{const s=localStorage.getItem(SAVE_KEY);return s?JSON.parse(s):null}catch(e){return null}}
+
+/* ======================= MOVEMENT ======================= */
+async function walk(pi,n){
+  const p=P(pi); const dir=n<0?-1:1;
+  busy=true;
+  for(let k=0;k<Math.abs(n);k++){
+    p.pos=(p.pos+dir+40)%40;
+    if(dir>0&&p.pos===0){p.money+=200;log(pname(pi)+' kaloi NISU dhe mori '+eur(200)+'.')}
+    renderBoard(); await sleep(reduced?20:115);
+  }
+  busy=false;
+}
+const reduced=matchMedia('(prefers-reduced-motion: reduce)').matches;
+async function moveTo(pi,target){const n=(target-P(pi).pos+40)%40;await walk(pi,n)}
+function sendJail(pi){
+  const p=P(pi); p.pos=10;p.jail=true;p.jailTurns=0;st.dbl=0;st.again=false;
+  log(pname(pi)+' shkon në burg.'); st.msg=esc(p.name)+' u dërgua në burg.';
+}
+
+async function land(pi,opt={}){
+  const p=P(pi),i=p.pos,s=S[i];
+  if(ownable(i)){
+    const o=st.own[i];
+    if(!o){st.pend={k:'buy',i,opt};st.msg=esc(p.name)+' qëndron në '+esc(s.n)+'. Pronë e lirë: '+eur(s.p)+'.';return}
+    if(o.o===pi){st.msg=esc(p.name)+' është në pronën e vet.';return}
+    if(o.m){st.msg=esc(s.n)+' është e hipotekuar. Nuk paguhet qira.';log(pname(pi)+' qëndroi në '+esc(s.n)+' (e hipotekuar).');return}
+    let ro=opt;
+    if(s.t==='ut'&&opt.util10){const a=d6(),b=d6();st.dice=[a,b];ro={util10:true,utilRoll:a+b};log(pname(pi)+' hodhi '+(a+b)+' për shërbimin komunal.')}
+    const r=rentOf(i,ro);
+    st.msg=esc(p.name)+' paguan qira '+eur(r)+' te '+esc(P(o.o).name)+'.';
+    pay(pi,[{to:o.o,amt:r}],'Qira për '+esc(s.n));
+    return;
+  }
+  if(s.t==='tax'){st.msg=esc(p.name)+': '+esc(s.n)+' – '+eur(s.amt)+'.';pay(pi,[{to:null,amt:s.amt}],esc(s.n));return}
+  if(s.t==='gojail'){sendJail(pi);return}
+  if(s.t==='sh'||s.t==='ch'){await drawCard(pi,s.t);return}
+  if(s.t==='park'){st.msg=esc(p.name)+' pushon në Parkim falas.';return}
+  if(s.t==='jail'){st.msg=esc(p.name)+' është vetëm për vizitë në burg.';return}
+  if(s.t==='go'){st.msg=esc(p.name)+' qëndron te NISU.';return}
+}
+
+async function drawCard(pi,k){
+  const d=st.decks[k]; const id=d.shift(); const c=CARDS[k][id];
+  if(c.a!=='jc') d.push(id);
+  st.card={k,x:c.x}; const p=P(pi);
+  log(pname(pi)+' tërhoqi '+(k==='sh'?'Shans':'Arka e Komunitetit')+': '+esc(c.x));
+  st.msg=esc(p.name)+' tërhoqi një letër.';
+  busy=true; render(); await sleep(reduced?100:700); busy=false;
+  switch(c.a){
+    case 'm': if(c.v>0){p.money+=c.v}else pay(pi,[{to:null,amt:-c.v}],'Letër');break;
+    case 'jc': p.cards.push({k,id});break;
+    case 'jail': sendJail(pi);break;
+    case 'to': await moveTo(pi,c.v); await land(pi); break;
+    case 'back': await walk(pi,-3); await land(pi); break;
+    case 'ntr': {let t=TR.find(x=>x>p.pos);if(t===undefined)t=TR[0];await moveTo(pi,t);await land(pi,{trMult:2});break}
+    case 'nut': {let t=UT.find(x=>x>p.pos);if(t===undefined)t=UT[0];await moveTo(pi,t);await land(pi,{util10:true});break}
+    case 'rep': {let h=0,H=0;propsOf(pi).forEach(i=>{const o=st.own[i];if(o.h===5)H++;else h+=o.h});const amt=h*c.v[0]+H*c.v[1];
+      if(amt>0)pay(pi,[{to:null,amt}],'Riparime');else log(pname(pi)+' nuk ka ndërtesa – nuk paguan asgjë.');break}
+    case 'pe': pay(pi,active().filter(j=>j!==pi).map(j=>({to:j,amt:c.v})),'Pagesë lojtarëve');break;
+    case 'ce': active().filter(j=>j!==pi).forEach(j=>{forcePay(j,c.v,pi)});break;
+  }
+}
+
+/* ======================= MONEY ======================= */
+function pay(pi,list,why){
+  const total=list.reduce((a,b)=>a+b.amt,0); const p=P(pi);
+  if(p.money>=total){
+    p.money-=total; list.forEach(x=>{if(x.to!==null)P(x.to).money+=x.amt});
+    log(pname(pi)+' pagoi '+eur(total)+(list.length===1&&list[0].to!==null?' te '+pname(list[0].to):'')+' ('+why+').');
+    return true;
+  }
+  st.pend={k:'debt',pi,list,why,then:st.pend&&st.pend.k==='jailmove'?st.pend:null};
+  st.msg=esc(p.name)+' ka borxh '+eur(total)+'. Duhet të mbledhë para.';
+  log(pname(pi)+' nuk ka mjaft para për '+eur(total)+'.');
+  return false;
+}
+/* used when another player must pay outside their turn (birthday card) */
+function forcePay(pi,amt,to){
+  if(P(pi).money<amt) autoRaise(pi,amt);
+  if(P(pi).money>=amt){P(pi).money-=amt;P(to).money+=amt;log(pname(pi)+' i dha '+eur(amt)+' '+pname(to)+'.')}
+  else bankrupt(pi,to);
+}
+function liquidValue(pi){let v=P(pi).money;propsOf(pi).forEach(i=>{const o=st.own[i],s=S[i];if(s.t==='st')v+=o.h*GR[s.g].h/2;if(!o.m)v+=s.p/2});return v}
+function autoRaise(pi,need){
+  let guard=200;
+  while(P(pi).money<need&&guard--){
+    const withH=propsOf(pi).filter(i=>st.own[i].h>0&&canSell(i,true));
+    if(withH.length){withH.sort((a,b)=>st.own[b].h-st.own[a].h);sellHouse(withH[0],true);continue}
+    const mo=propsOf(pi).filter(i=>canMortgage(i)).sort((a,b)=>S[a].p-S[b].p);
+    if(mo.length){mortgage(mo[0],true);continue}
+    break;
+  }
+}
+function payDebt(){
+  const d=st.pend; if(!d||d.k!=='debt')return; const p=P(d.pi);
+  const total=d.list.reduce((a,b)=>a+b.amt,0); if(p.money<total)return;
+  st.pend=null; pay(d.pi,d.list,d.why);
+  if(d.then){ jailMove(d.then.n); return }
+  cont();
+}
+function bankrupt(pi,creditor){
+  const p=P(pi);
+  // buildings back to bank at half price
+  propsOf(pi).forEach(i=>{const o=st.own[i];if(o.h>0){const c=GR[S[i].g].h;p.money+=o.h*c/2;if(o.h===5)st.hotels++;else st.houses+=o.h;o.h=0}});
+  if(creditor!==null&&creditor!==undefined&&!P(creditor).out){
+    P(creditor).money+=Math.max(0,p.money);
+    propsOf(pi).forEach(i=>st.own[i].o=creditor);
+    p.cards.forEach(c=>P(creditor).cards.push(c));
+    log(pname(pi)+' FALIMENTOI. Gjithçka kalon te '+pname(creditor)+'.');
+  }else{
+    propsOf(pi).forEach(i=>delete st.own[i]);
+    p.cards.forEach(c=>st.decks[c.k].push(c.id));
+    log(pname(pi)+' FALIMENTOI. Pronat kthehen te Banka.');
+  }
+  p.cards=[];p.money=0;p.out=true;p.jail=false;
+  const a=active();
+  if(a.length===1){st.winner=a[0];st.pend=null;st.msg=esc(P(a[0]).name)+' fitoi lojën!';log(pname(a[0])+' FITOI LOJËN!');}
+}
+function declareBankrupt(){
+  const d=st.pend; if(!d||d.k!=='debt')return;
+  const cred=d.list.length===1?d.list[0].to:null;
+  st.pend=null; bankrupt(d.pi,cred);
+  if(st.winner==null) endTurn(true); else render();
+}
+
+/* ======================= BUILD / MORTGAGE ======================= */
+function canBuild(i){
+  const s=S[i],o=st.own[i]; if(!o||s.t!=='st')return false;
+  if(!ownsAll(o.o,s.g))return false; const g=groupOf(s.g);
+  if(g.some(k=>st.own[k].m))return false;
+  if(o.h>=5)return false;
+  if(o.h>Math.min(...g.map(k=>st.own[k].h)))return false;
+  if(P(o.o).money<GR[s.g].h)return false;
+  if(o.h===4?st.hotels<1:st.houses<1)return false;
+  return true;
+}
+function build(i){
+  if(!canBuild(i))return; const o=st.own[i],c=GR[S[i].g].h; P(o.o).money-=c;
+  if(o.h===4){st.hotels--;st.houses+=4}else st.houses--; o.h++;
+  log(pname(o.o)+' ndërtoi '+(o.h===5?'hotel':'shtëpi')+' në '+esc(S[i].n)+' ('+eur(c)+').');
+}
+function canSell(i,force){
+  const s=S[i],o=st.own[i]; if(!o||s.t!=='st'||o.h===0)return false;
+  if(o.h<Math.max(...groupOf(s.g).map(k=>st.own[k].h)))return false;
+  if(o.h===5&&st.houses<4&&!force)return false;
+  return true;
+}
+function sellHouse(i,force){
+  if(!canSell(i,force))return; const o=st.own[i],c=GR[S[i].g].h;
+  if(o.h===5){ if(st.houses>=4){st.houses-=4;st.hotels++;o.h=4;P(o.o).money+=c/2}
+    else{st.hotels++;o.h=0;P(o.o).money+=c/2*5} }
+  else{o.h--;st.houses++;P(o.o).money+=c/2}
+  log(pname(o.o)+' shiti një ndërtesë në '+esc(S[i].n)+'.');
+}
+function canMortgage(i){const o=st.own[i];if(!o||o.m)return false;if(S[i].t==='st'&&groupHasBuildings(S[i].g))return false;return true}
+function mortgage(i){if(!canMortgage(i))return;const o=st.own[i];o.m=true;P(o.o).money+=S[i].p/2;log(pname(o.o)+' hipotekoi '+esc(S[i].n)+' (+'+eur(S[i].p/2)+').')}
+const unmortCost=i=>Math.ceil(S[i].p/2*1.1);
+function canUnmortgage(i){const o=st.own[i];return o&&o.m&&P(o.o).money>=unmortCost(i)}
+function unmortgage(i){if(!canUnmortgage(i))return;const o=st.own[i];o.m=false;P(o.o).money-=unmortCost(i);log(pname(o.o)+' shleu hipotekën e '+esc(S[i].n)+' (−'+eur(unmortCost(i))+').')}
+
+/* ======================= TURN FLOW ======================= */
+async function roll(){
+  if(busy||st.phase!=='roll'||st.pend||st.winner!=null)return;
+  const pi=st.cur,p=P(pi); const a=d6(),b=d6(); st.dice=[a,b]; const dbl=a===b; st.card=null;
+  rolling=true; busy=true; render(); await sleep(reduced?50:520); rolling=false; busy=false;
+  log(pname(pi)+' hodhi '+a+' + '+b+(dbl?' (dyshe)':'')+'.');
+  if(p.jail){
+    if(dbl){p.jail=false;p.jailTurns=0;st.again=false;log(pname(pi)+' doli nga burgu me dyshe.');st.phase='act';await walk(pi,a+b);await land(pi);cont();return}
+    p.jailTurns++;
+    if(p.jailTurns>=3){
+      st.msg=esc(p.name)+' duhet të paguajë '+eur(50)+' dhe të dalë.';
+      st.pend={k:'jailmove',n:a+b};
+      if(pay(pi,[{to:null,amt:50}],'Lirim nga burgu')){st.pend=null;jailMove(a+b)}
+      else render();
+      return;
+    }
+    st.msg=esc(p.name)+' nuk hodhi dyshe dhe mbetet në burg.'; st.phase='end'; st.again=false; render(); return;
+  }
+  if(dbl){st.dbl++; if(st.dbl===3){log(pname(pi)+' hodhi tri herë dyshe.');sendJail(pi);st.phase='end';render();return}}
+  st.again=dbl; st.phase='act';
+  await walk(pi,a+b); await land(pi); cont();
+}
+async function jailMove(n){
+  const pi=st.cur,p=P(pi); p.jail=false;p.jailTurns=0;st.again=false;st.phase='act';
+  await walk(pi,n); await land(pi); cont();
+}
+function cont(){
+  if(st.winner!=null){render();return}
+  if(st.pend){render();return}
+  const p=curP(); if(p.out){endTurn(true);return}
+  if(st.again&&!p.jail){st.phase='roll';st.msg=esc(p.name)+' hodhi dyshe – hidh përsëri!'}
+  else st.phase='end';
+  render();
+}
+function endTurn(force){
+  if(!force&&(busy||st.phase!=='end'||st.pend))return;
+  if(st.winner!=null){render();return}
+  let n=st.cur; do{n=(n+1)%st.players.length}while(P(n).out);
+  if(n<=st.cur) st.turnNo++;
+  st.cur=n;st.phase='roll';st.dbl=0;st.again=false;st.card=null;
+  st.msg='Radha e '+esc(P(n).name)+(P(n).jail?' (në burg)':'')+'.';
+  render();
+}
+function payJail(){
+  const p=curP(); if(!p.jail||st.phase!=='roll'||p.money<50||st.pend)return;
+  p.money-=50;p.jail=false;p.jailTurns=0;log(pname(st.cur)+' pagoi '+eur(50)+' dhe doli nga burgu.');st.msg=esc(p.name)+' është i lirë. Hidh zaret.';render();
+}
+function useJailCard(){
+  const p=curP(); if(!p.jail||!p.cards.length||st.phase!=='roll')return;
+  const c=p.cards.pop(); st.decks[c.k].push(c.id); p.jail=false;p.jailTurns=0;
+  log(pname(st.cur)+' përdori letrën "Dil nga burgu falas".');st.msg=esc(p.name)+' është i lirë. Hidh zaret.';render();
+}
+
+/* ======================= BUY / AUCTION ======================= */
+function buy(){
+  const d=st.pend; if(!d||d.k!=='buy')return; const p=curP(),s=S[d.i];
+  if(p.money<s.p)return;
+  p.money-=s.p; st.own[d.i]={o:st.cur,h:0,m:false}; st.pend=null;
+  log(pname(st.cur)+' bleu '+esc(s.n)+' për '+eur(s.p)+'.'); st.msg=esc(p.name)+' bleu '+esc(s.n)+'.';
+  cont();
+}
+function startAuction(){
+  const d=st.pend; if(!d||d.k!=='buy')return;
+  const a=active(); const start=a.indexOf(st.cur);
+  st.pend={k:'auction',i:d.i,bid:0,hi:null,act:a.slice(start).concat(a.slice(0,start)),turn:0};
+  log(esc(S[d.i].n)+' del në ankand.'); st.msg='Ankand për '+esc(S[d.i].n)+'.';
+  render();
+}
+function aBid(inc){
+  const a=st.pend; if(!a||a.k!=='auction')return; const bi=a.act[a.turn];
+  const nb=a.bid+inc; if(P(bi).money<nb)return;
+  a.bid=nb;a.hi=bi;log(pname(bi)+' ofron '+eur(nb)+'.');
+  a.turn=(a.turn+1)%a.act.length; aCheck();
+}
+function aPass(){
+  const a=st.pend; if(!a||a.k!=='auction')return; const bi=a.act[a.turn];
+  log(pname(bi)+' tërhiqet nga ankandi.');
+  a.act.splice(a.turn,1); if(a.turn>=a.act.length)a.turn=0; aCheck();
+}
+function aCheck(){
+  const a=st.pend;
+  if(a.act.length===0){log('Askush nuk e bleu '+esc(S[a.i].n)+'.');st.pend=null;cont();return}
+  if(a.act.length===1&&a.hi===a.act[0]){
+    const w=a.hi;P(w).money-=a.bid;st.own[a.i]={o:w,h:0,m:false};
+    log(pname(w)+' fitoi ankandin: '+esc(S[a.i].n)+' për '+eur(a.bid)+'.');st.msg=esc(P(w).name)+' fitoi '+esc(S[a.i].n)+' për '+eur(a.bid)+'.';
+    st.pend=null;cont();return}
+  if(a.act[a.turn]===a.hi) a.turn=(a.turn+1)%a.act.length;
+  render();
+}
+
+/* ======================= TRADE ======================= */
+function tradable(i){const s=S[i];return !(s.t==='st'&&groupHasBuildings(s.g))}
+function applyTrade(t){
+  const A=t.a,B=t.b;
+  t.give.forEach(i=>st.own[i].o=B); t.get.forEach(i=>st.own[i].o=A);
+  P(A).money+=t.mGet-t.mGive; P(B).money+=t.mGive-t.mGet;
+  log(pname(A)+' dhe '+pname(B)+' bënë marrëveshje: '+[...t.give.map(i=>esc(S[i].n)),t.mGive?eur(t.mGive):''].filter(Boolean).join(', ')+' ⇄ '+[...t.get.map(i=>esc(S[i].n)),t.mGet?eur(t.mGet):''].filter(Boolean).join(', ')+'.');
+}
+function botAccepts(t){
+  const bot=t.b,hum=t.a;
+  const val=(i,forWhom)=>{const s=S[i];let v=st.own[i].m?s.p*0.55:s.p;
+    if(s.g){const g=groupOf(s.g);const others=g.filter(k=>k!==i);if(others.every(k=>st.own[k]&&st.own[k].o===forWhom))v+=s.p*1.2}
+    return v};
+  const gain=t.give.reduce((a,i)=>a+val(i,bot),0)+t.mGive;
+  const loss=t.get.reduce((a,i)=>a+val(i,hum),0)+t.mGet;
+  if(t.mGive>P(hum).money||t.mGet>P(bot).money)return false;
+  return gain>loss*1.1+10;
+}
+
+/* ======================= BOTS ======================= */
+function needsBot(){
+  if(!st||st.winner!=null||busy)return false;
+  if(modalState&&modalState.k==='tradeConfirm')return false;
+  const a=st.pend;
+  if(a&&a.k==='auction')return P(a.act[a.turn]).bot;
+  if(a&&a.k==='debt')return P(a.pi).bot;
+  return curP().bot;
+}
+function scheduleBot(){
+  if(botTimer||!needsBot())return;
+  botTimer=setTimeout(async()=>{botTimer=null;if(needsBot())await botStep();},reduced?250:750);
+}
+function completesSet(pi,i){const s=S[i];if(!s.g)return false;return groupOf(s.g).filter(k=>k!==i).every(k=>st.own[k]&&st.own[k].o===pi)}
+async function botStep(){
+  const a=st.pend;
+  if(a&&a.k==='auction'){
+    const bi=a.act[a.turn],p=P(bi),s=S[a.i];
+    let lim=s.p*(completesSet(bi,a.i)?1.6:(0.75+Math.random()*0.35)); lim=Math.min(lim,p.money-60);
+    const inc=a.bid<s.p*0.4?50:10;
+    if(a.bid+inc<=lim)aBid(inc);else aPass();
+    return;
+  }
+  if(a&&a.k==='debt'){
+    const total=a.list.reduce((x,y)=>x+y.amt,0);
+    autoRaise(a.pi,total); if(P(a.pi).money>=total)payDebt();else declareBankrupt();
+    return;
+  }
+  const pi=st.cur,p=P(pi);
+  if(a&&a.k==='buy'){
+    const s=S[a.i]; const keep=st.turnNo<4?60:150;
+    if(p.money>=s.p&&(p.money-s.p>=keep||completesSet(pi,a.i)))buy();else startAuction();
+    return;
+  }
+  if(st.phase==='roll'){
+    if(p.jail){
+      if(p.cards.length){useJailCard();return}
+      const early=Object.keys(st.own).length<18;
+      if(early&&p.money>=200){payJail();return}
+    }
+    await roll();return;
+  }
+  if(st.phase==='end'){
+    // develop
+    for(let k=0;k<12;k++){
+      const opts=propsOf(pi).filter(i=>canBuild(i)&&p.money-GR[S[i].g].h>=220);
+      if(!opts.length)break; opts.sort((x,y)=>st.own[x].h-st.own[y].h||S[y].p-S[x].p); build(opts[0]);
+    }
+    propsOf(pi).filter(i=>st.own[i].m).forEach(i=>{if(p.money-unmortCost(i)>450)unmortgage(i)});
+    endTurn();
+  }
+}
+
+/* ======================= RENDER ======================= */
+function gp(i){if(i<=10)return[11,11-i];if(i<=20)return[11-(i-10),1];if(i<=30)return[1,1+(i-20)];return[1+(i-30),11]}
+function side(i){if(i%10===0)return'c';if(i<10)return'b';if(i<20)return'l';if(i<30)return't';return'r'}
+const svgI=k=>'<span class="ico"><svg viewBox="0 0 24 24">'+ICON[k]+'</svg></span>';
+
+function cellHTML(i){
+  const s=S[i],sd=side(i),[r,c]=gp(i),o=st.own[i];
+  let inner='';
+  if(s.t==='go')inner='<div class="corner go"><span class="sm">Merr '+eur(200)+' kur kalon</span><span class="big">NISU</span><svg class="arrow" viewBox="0 0 90 16"><path d="M88 8H6M14 1L4 8l10 7" fill="none" stroke="#c62f2f" stroke-width="3"/></svg></div>';
+  else if(s.t==='jail')inner='<div class="corner jail"><div class="jailbox"><span>NË BURG</span></div><div class="vv">Vetëm vizitë</div></div>';
+  else if(s.t==='park')inner='<div class="corner"><span class="sm">Parkim</span><svg viewBox="0 0 24 24" style="width:5cqw;height:5cqw;fill:none;stroke:#c62f2f;stroke-width:2"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M9 17V7h4a3 3 0 0 1 0 6H9"/></svg><span class="big" style="font-size:1.7cqw">FALAS</span></div>';
+  else if(s.t==='gojail')inner='<div class="corner"><span class="sm">Shko</span><svg viewBox="0 0 24 24" style="width:5cqw;height:5cqw;fill:none;stroke:#13203a;stroke-width:1.8;stroke-linecap:round"><path d="M4 12h12M12 6l6 6-6 6M20 4v16"/></svg><span class="big" style="font-size:1.7cqw">NË BURG</span></div>';
+  else{
+    let bar='';
+    if(s.t==='st'){
+      let hs='';
+      if(o&&o.h===5)hs='<span class="hotel"></span>';else if(o)for(let k=0;k<o.h;k++)hs+='<span class="house"></span>';
+      bar='<div class="bar" style="background:'+GR[s.g].c+'">'+hs+'</div>';
+    }
+    let mid='';
+    if(s.t==='sh')mid='<span class="q">?</span>';
+    else if(s.t==='ch')mid=svgI('chest');
+    else if(s.ic)mid=svgI(s.ic);
+    const price=s.p?eur(s.p):(s.amt?'Paguaj '+eur(s.amt):'');
+    inner=bar+'<div class="body"><span class="nm">'+esc(s.n)+'</span>'+mid+'<span class="pr">'+price+'</span></div>';
+    if(o)inner+='<span class="owner" style="background:'+P(o.o).color+'"></span>'+(o.m?'<span class="mort"></span>':'');
+  }
+  const toks=st.players.map((p,k)=>p.out||p.pos!==i?'':'<span class="tok'+(k===st.cur?' now':'')+(p.jail?' jailed':'')+'" style="background:'+p.color+'" title="'+esc(p.name)+'">'+esc(p.name.trim()[0]||'?').toUpperCase()+'</span>').join('');
+  const hl=st.pend&&(st.pend.k==='buy'||st.pend.k==='auction')&&st.pend.i===i?' hl':'';
+  return '<div class="cell '+sd+hl+'" style="grid-area:'+r+'/'+c+'" data-act="deed" data-arg="'+i+'" tabindex="0" role="button" aria-label="'+esc(s.n)+'">'+inner+'<div class="tokens">'+toks+'</div></div>';
+}
+function dieHTML(n){let h='';for(let k=0;k<9;k++)h+='<i class="'+(PIPS[n].includes(k)?'on':'')+'"></i>';return'<div class="die'+(rolling?' roll':'')+'">'+h+'</div>'}
+function centerHTML(){
+  const shown=rolling?[d6(),d6()]:st.dice;
+  let card='';
+  if(st.card)card='<div class="card '+st.card.k+'"><div class="k">'+(st.card.k==='sh'?'Shans':'Arka e Komunitetit')+'</div><p>'+esc(st.card.x)+'</p></div>';
+  return '<div class="center"><div class="title"><div class="stars">'+STAR.repeat(6)+'</div><h1>PRONAT E KOSOVËS</h1><p>Lojë tregtimi me prona</p></div>'+
+    '<div class="mid"><div class="dice">'+dieHTML(shown[0])+dieHTML(shown[1])+'</div>'+(card||'<div class="msg">'+(st.msg||'')+'</div>')+'</div>'+
+    '<div class="foot"><span>Raundi '+st.turnNo+'</span><span>Shtëpi '+st.houses+' · Hotele '+st.hotels+'</span></div></div>';
+}
+function renderBoard(){
+  let h='';for(let i=0;i<40;i++)h+=cellHTML(i);
+  $('#board').innerHTML=h+centerHTML();
+}
+function renderPlayers(){
+  $('#players').innerHTML=st.players.map((p,i)=>{
+    const chips=propsOf(i).map(k=>'<span class="chip'+(st.own[k].m?' m':'')+'" title="'+esc(S[k].n)+'" style="background:'+(S[k].g?GR[S[k].g].c:'#8d99a8')+'"></span>').join('');
+    const tags=(p.bot?' <span class="badge b">Bot</span>':'')+(p.jail?' <span class="badge j">Në burg</span>':'')+(p.cards.length?' <span class="badge">Letër lirimi ×'+p.cards.length+'</span>':'');
+    return '<div class="pl'+(i===st.cur&&st.winner==null?' cur':'')+(p.out?' out':'')+'"><span class="dot" style="background:'+p.color+'">'+esc((p.name.trim()[0]||'?').toUpperCase())+'</span>'+
+      '<div style="min-width:0"><div class="nm2">'+esc(p.name)+tags+'</div><div class="sub">'+esc(S[p.pos].n)+'</div><div class="chips">'+chips+'</div></div><span class="money">'+eur(p.money)+'</span></div>';
+  }).join('');
+}
+function canManage(pi){return !busy&&st.winner==null&&pi===st.cur&&!P(pi).bot&&!(st.pend&&st.pend.k==='auction')}
+function renderActions(){
+  const el=$('#act'); const p=curP(); let h='';
+  if(st.winner!=null){
+    h='<h2>Fund i lojës</h2><p class="lead">'+pname(st.winner)+' fitoi me '+eur(P(st.winner).money)+'!</p><div class="row"><button class="btn pri" data-act="setup">Lojë e re</button></div>';
+    el.innerHTML=h;return;
+  }
+  const a=st.pend;
+  h='<h2>Radha e '+esc(p.name)+'</h2>';
+  if(a&&a.k==='auction'){
+    const bi=a.act[a.turn],b=P(bi);
+    h='<h2>Ankand · '+esc(S[a.i].n)+'</h2><p class="lead">Oferta: <span class="money">'+eur(a.bid)+'</span>'+(a.hi!==null?' nga '+pname(a.hi):'')+'</p>'+
+      '<p class="note">Vlera '+eur(S[a.i].p)+'. Në ankand: '+a.act.map(pname).join(', ')+'.</p><p>Radha për ofertë: '+pname(bi)+' ('+eur(b.money)+')</p>';
+    if(!b.bot) h+='<div class="row">'+[10,50,100].map(n=>'<button class="btn pri" data-act="bid" data-arg="'+n+'" '+(b.money<a.bid+n?'disabled':'')+'>+'+eur(n)+'</button>').join('')+'<button class="btn dan" data-act="pass">Tërhiqu</button></div>';
+    else h+='<p class="note">'+esc(b.name)+' po mendon…</p>';
+    el.innerHTML=h;return;
+  }
+  if(p.bot&&!(a&&a.k==='debt'&&!P(a.pi).bot)){
+    h+='<p class="lead">'+esc(p.name)+' po luan…</p><p class="note">'+(st.msg||'')+'</p>';el.innerHTML=h;return;
+  }
+  if(a&&a.k==='buy'){
+    const s=S[a.i];
+    h+='<p class="lead">'+esc(s.n)+' është e lirë.</p><p class="note">Çmimi '+eur(s.p)+'. Ti ke '+eur(p.money)+'. Nëse nuk e blen, del në ankand për të gjithë.</p>'+
+      '<div class="row"><button class="btn pri" data-act="buy" '+(p.money<s.p?'disabled':'')+'>Bli për '+eur(s.p)+'</button><button class="btn" data-act="auction">Nxirre në ankand</button><button class="btn sm" data-act="deed" data-arg="'+a.i+'">Shih letrën</button></div>'+
+      (p.money<s.p?'<p class="note" style="margin-top:8px">Nuk ke mjaft para. Hipotekoni një pronë ose nxirre në ankand.</p>':'');
+  }else if(a&&a.k==='debt'){
+    const total=a.list.reduce((x,y)=>x+y.amt,0),d=P(a.pi);
+    h+='<p class="lead" style="color:var(--danger)">Je në borxh: '+eur(total)+'</p><p class="note">'+esc(a.why)+'. Ke '+eur(d.money)+'. Shit shtëpi ose hipotekoni prona (kliko pronat më poshtë), pastaj paguaj. Vlera maksimale që mund të mbledhësh: '+eur(liquidValue(a.pi))+'.</p>'+
+      '<div class="row"><button class="btn pri" data-act="payDebt" '+(d.money<total?'disabled':'')+'>Paguaj '+eur(total)+'</button><button class="btn dan" data-act="bankrupt">Shpall falimentim</button></div>';
+  }else if(st.phase==='roll'){
+    if(p.jail){
+      h+='<p class="lead">Je në burg (përpjekja '+(p.jailTurns+1)+' nga 3).</p><p class="note">Hidh dyshe për të dalë, paguaj '+eur(50)+' ose përdor letrën e lirimit.</p>'+
+        '<div class="row"><button class="btn pri" data-act="roll" '+(busy?'disabled':'')+'>Hidh zaret</button><button class="btn" data-act="payJail" '+(p.money<50?'disabled':'')+'>Paguaj '+eur(50)+'</button>'+(p.cards.length?'<button class="btn gold" data-act="useCard">Përdor letrën</button>':'')+'</div>';
+    }else{
+      h+='<p class="lead">'+(st.msg||'Hidh zaret.')+'</p><div class="row"><button class="btn pri" data-act="roll" '+(busy?'disabled':'')+'>Hidh zaret</button><button class="btn" data-act="trade" '+(busy?'disabled':'')+'>Bëj marrëveshje</button></div>';
+    }
+  }else if(st.phase==='end'){
+    h+='<p class="lead">'+(st.msg||'')+'</p><p class="note">Mund të ndërtosh, hipotekosh ose tregtosh para se ta mbyllësh radhën.</p><div class="row"><button class="btn pri" data-act="endTurn">Përfundo radhën</button><button class="btn" data-act="trade">Bëj marrëveshje</button></div>';
+  }else{
+    h+='<p class="lead">'+(st.msg||'…')+'</p>';
+  }
+  const mine=propsOf(a&&a.k==='debt'?a.pi:st.cur);
+  if(mine.length)h+='<div class="props">'+mine.map(i=>{const o=st.own[i];const lv=o.h===5?' · H':o.h?' · '+o.h+'sh':'';
+    return '<button class="pchip'+(o.m?' m':'')+'" data-act="deed" data-arg="'+i+'"><i style="background:'+(S[i].g?GR[S[i].g].c:'#8d99a8')+'"></i>'+esc(S[i].n)+lv+'</button>'}).join('')+'</div>';
+  else h+='<p class="note" style="margin-top:12px">Ende nuk ke asnjë pronë.</p>';
+  el.innerHTML=h;
+}
+function renderLog(){$('#log').innerHTML=st.log.map(l=>'<div>'+l+'</div>').join('')}
+function render(){
+  if(!st)return;
+  renderBoard();renderPlayers();renderActions();renderLog();
+  if(modalState&&modalState.k==='deed')openDeed(modalState.i);
+  save(); scheduleBot();
+}
+
+/* ======================= MODALS ======================= */
+function showModal(html){$('#modal').innerHTML='<div class="ov" data-ovl="1"><div class="modal" role="dialog" aria-modal="true">'+html+'</div></div>'}
+function closeModal(){modalState=null;$('#modal').innerHTML='';if(st)scheduleBot()}
+function openDeed(i){
+  i=+i; const s=S[i]; modalState={k:'deed',i};
+  if(!ownable(i)){
+    const info={go:'Sa herë kalon NISU merr '+eur(200)+' nga Banka.',jail:'Nëse vetëm kalon këtu, je për vizitë. Në burg hyn me "Shko në burg", me një letër, ose me tri dyshe radhazi.',
+      park:'Hapësirë pushimi. Nuk ndodh asgjë.',gojail:'Shko drejt e në burg pa kaluar NISU.',tax:'Paguaj '+eur(s.amt||0)+' te Banka.',
+      sh:'Tërhiq një letër Shansi.',ch:'Tërhiq një letër nga Arka e Komunitetit.'}[s.t];
+    showModal('<button class="btn sm x" data-act="close">Mbyll</button><h3>'+esc(s.n)+'</h3><p>'+info+'</p>');return;
+  }
+  const o=st.own[i];
+  let rows='',hd='';
+  if(s.t==='st'){
+    const lvl=o?(o.h>0?o.h+1:(ownsAll(o.o,s.g)?1:0)):-1;
+    hd='<div class="hd" style="background:'+GR[s.g].c+';color:'+(['lb','ye'].includes(s.g)?'#13203a':'#fff')+'"><small>Letër pronësie</small><strong>'+esc(s.n)+'</strong></div>';
+    const labels=['Qira','Qira me grup të plotë','Me 1 shtëpi','Me 2 shtëpi','Me 3 shtëpi','Me 4 shtëpi','Me hotel'];
+    const vals=[s.r[0],s.r[0]*2,s.r[1],s.r[2],s.r[3],s.r[4],s.r[5]];
+    rows=labels.map((l,k)=>'<tr class="'+(k===lvl?'on':'')+'"><td>'+l+'</td><td>'+eur(vals[k])+'</td></tr>').join('')+
+      '<tr class="sep"><td>Kosto e shtëpisë / hotelit</td><td>'+eur(GR[s.g].h)+'</td></tr>';
+  }else if(s.t==='tr'){
+    hd='<div class="hd" style="background:#13203a;color:#fff"><small>Transport</small><strong>'+esc(s.n)+'</strong></div>';
+    const n=o?TR.filter(k=>st.own[k]&&st.own[k].o===o.o).length:0;
+    rows=[1,2,3,4].map(k=>'<tr class="'+(k===n?'on':'')+'"><td>Pronar i '+k+' transporteve</td><td>'+eur(25*Math.pow(2,k-1))+'</td></tr>').join('');
+  }else{
+    hd='<div class="hd" style="background:#13203a;color:#fff"><small>Shërbim komunal</small><strong>'+esc(s.n)+'</strong></div>';
+    rows='<tr><td>Me 1 shërbim</td><td>4 × zaret</td></tr><tr><td>Me të dy shërbimet</td><td>10 × zaret</td></tr>';
+  }
+  rows='<tr><td>Çmimi</td><td>'+eur(s.p)+'</td></tr>'+rows+'<tr class="sep"><td>Vlera e hipotekës</td><td>'+eur(s.p/2)+'</td></tr><tr><td>Shlyerja (+10%)</td><td>'+eur(unmortCost(i))+'</td></tr>';
+  let status=o?'Pronar: '+pname(o.o)+(o.m?' · <b style="color:var(--danger)">e hipotekuar</b>':'')+(o.h===5?' · hotel':o.h?' · '+o.h+' shtëpi':''):'Pa pronar – e Bankës.';
+  let btns='';
+  if(o&&canManage(o.o)){
+    const c=s.g?GR[s.g].h:0;
+    btns='<div class="row">'+
+      (s.t==='st'?'<button class="btn pri" data-act="build" data-arg="'+i+'" '+(canBuild(i)?'':'disabled')+'>'+(o.h===4?'Ndërto hotel':'Ndërto shtëpi')+' (−'+eur(c)+')</button>'+
+       '<button class="btn" data-act="sell" data-arg="'+i+'" '+(canSell(i)?'':'disabled')+'>Shit ndërtesë (+'+eur(c/2)+')</button>':'')+
+      (o.m?'<button class="btn gold" data-act="unmort" data-arg="'+i+'" '+(canUnmortgage(i)?'':'disabled')+'>Shlyej hipotekën (−'+eur(unmortCost(i))+')</button>'
+          :'<button class="btn" data-act="mort" data-arg="'+i+'" '+(canMortgage(i)?'':'disabled')+'>Hipotekë (+'+eur(s.p/2)+')</button>')+
+      '</div>';
+    if(s.t==='st'&&!ownsAll(o.o,s.g))btns+='<p class="note" style="margin-top:8px;color:var(--muted)">Për të ndërtuar duhet të kesh të gjithë grupin '+GR[s.g].n.toLowerCase()+'.</p>';
+    else if(s.t==='st')btns+='<p class="note" style="margin-top:8px;color:var(--muted)">Ndërto në mënyrë të barabartë: asnjë pronë e grupit s\'mund të ketë 2 ndërtesa më shumë se tjetra.</p>';
+  }
+  showModal('<button class="btn sm x" data-act="close">Mbyll</button><h3>'+esc(s.n)+'</h3><p class="note">'+status+'</p><div class="deed">'+hd+'<table>'+rows+'</table></div>'+btns);
+}
+function openSetup(){
+  modalState={k:'setup'};
+  const names=['Ti','Arbeni','Drita','Blerta','Gëzimi','Liridona'];
+  let rows='';
+  for(let k=0;k<6;k++)rows+='<div class="srow" id="sr'+k+'" '+(k>=3?'hidden':'')+'><span class="dot" style="width:22px;height:22px;border-radius:50%;background:'+PCOL[k]+';display:block"></span>'+
+    '<input id="pn'+k+'" maxlength="16" value="'+names[k]+'" aria-label="Emri i lojtarit '+(k+1)+'"><select id="pt'+k+'" aria-label="Lloji"><option value="h" '+(k===0?'selected':'')+'>Njeri</option><option value="b" '+(k>0?'selected':'')+'>Kompjuter</option></select></div>';
+  showModal('<h3>Lojë e re</h3><p class="note">2–6 lojtarë. Njerëzit luajnë me radhë në të njëjtën pajisje; kompjuteri luan vetë.</p>'+
+    '<div class="field" style="max-width:200px;margin-top:12px"><label for="np">Numri i lojtarëve</label><select id="np">'+[2,3,4,5,6].map(n=>'<option '+(n===3?'selected':'')+'>'+n+'</option>').join('')+'</select></div>'+
+    '<div class="setup-grid">'+rows+'</div><div class="row"><button class="btn pri" data-act="start">Fillo lojën</button>'+
+(st?'<button class="btn" data-act="close">Anulo</button>':'')+'</div>');
+  $('#np').addEventListener('change',e=>{const n=+e.target.value;for(let k=0;k<6;k++)$('#sr'+k).hidden=k>=n});
+}
+function startFromSetup(){
+  const n=+$('#np').value; const cfg=[];
+  for(let k=0;k<n;k++)cfg.push({name:($('#pn'+k).value.trim()||'Lojtari '+(k+1)).slice(0,16),bot:$('#pt'+k).value==='b'});
+  newGame(cfg);
+}
+function openTrade(partner){
+  const me=st.cur; const others=active().filter(i=>i!==me); if(!others.length)return;
+  partner=partner!==undefined?+partner:others[0];
+  modalState={k:'trade',b:partner};
+  const list=(pi,cls)=>{const ps=propsOf(pi).filter(tradable);return ps.length?ps.map(i=>'<label class="pp"><input type="checkbox" class="'+cls+'" value="'+i+'"><i style="background:'+(S[i].g?GR[S[i].g].c:'#8d99a8')+'"></i>'+esc(S[i].n)+(st.own[i].m?' (hipotekë)':'')+'</label>').join(''):'<span class="note">Asnjë pronë për tregti.</span>'};
+  showModal('<button class="btn sm x" data-act="close">Mbyll</button><h3>Bëj marrëveshje</h3><p class="note">Pronat me ndërtesa në grup nuk mund të tregtohen derisa të shiten ndërtesat.</p>'+
+    '<div class="field" style="max-width:260px;margin-top:10px"><label for="tp">Me kë</label><select id="tp">'+others.map(i=>'<option value="'+i+'" '+(i===partner?'selected':'')+'>'+esc(P(i).name)+(P(i).bot?' (kompjuter)':'')+'</option>').join('')+'</select></div>'+
+    '<div class="tcols"><div class="tcol"><b>'+esc(P(me).name)+' jep</b>'+list(me,'tg')+'<div class="field"><label for="tmg">Para (ke '+eur(P(me).money)+')</label><input id="tmg" type="number" min="0" max="'+P(me).money+'" step="10" value="0"></div></div>'+
+    '<div class="tcol"><b>'+esc(P(partner).name)+' jep</b>'+list(partner,'tt')+'<div class="field"><label for="tmt">Para (ka '+eur(P(partner).money)+')</label><input id="tmt" type="number" min="0" max="'+P(partner).money+'" step="10" value="0"></div></div></div>'+
+    '<p class="note" id="terr" style="color:var(--danger)"></p><div class="row"><button class="btn pri" data-act="propose">Propozo</button></div>');
+  $('#tp').addEventListener('change',e=>openTrade(e.target.value));
+}
+function proposeTrade(){
+  const me=st.cur,b=modalState.b;
+  const t={a:me,b,give:[...document.querySelectorAll('.tg:checked')].map(x=>+x.value),get:[...document.querySelectorAll('.tt:checked')].map(x=>+x.value),
+    mGive:Math.max(0,Math.floor(+$('#tmg').value||0)),mGet:Math.max(0,Math.floor(+$('#tmt').value||0))};
+  if(!t.give.length&&!t.get.length&&!t.mGive&&!t.mGet){$('#terr').textContent='Zgjidh të paktën një pronë ose shumë parash.';return}
+  if(t.mGive>P(me).money){$('#terr').textContent='Nuk ke aq para.';return}
+  if(t.mGet>P(b).money){$('#terr').textContent=P(b).name+' nuk ka aq para.';return}
+  if(P(b).bot){
+    if(botAccepts(t)){applyTrade(t);closeModal();st.msg=esc(P(b).name)+' e pranoi marrëveshjen.';render()}
+    else{$('#terr').textContent=P(b).name+' e refuzoi ofertën. Provo të ofrosh më shumë.'}
+    return;
+  }
+  modalState={k:'tradeConfirm',t};
+  const side=(arr,m)=>[...arr.map(i=>esc(S[i].n)),m?eur(m):''].filter(Boolean).join(', ')||'asgjë';
+  showModal('<h3>'+esc(P(b).name)+', a e pranon?</h3><p class="note">Jepja pajisjen '+esc(P(b).name)+'.</p>'+
+    '<div class="tcols"><div class="tcol"><b>'+esc(P(me).name)+' jep</b><span>'+side(t.give,t.mGive)+'</span></div><div class="tcol"><b>'+esc(P(b).name)+' jep</b><span>'+side(t.get,t.mGet)+'</span></div></div>'+
+    '<div class="row"><button class="btn pri" data-act="tAccept">Pranoj</button><button class="btn dan" data-act="tReject">Refuzoj</button></div>');
+}
+function openRules(){
+  modalState={k:'rules'};
+  showModal('<button class="btn sm x" data-act="close">Mbyll</button><h3>Rregullat</h3><div class="rules">'+
+  '<h4>Si të fitosh</h4><p>Bëhu lojtari i fundit në lojë pasi të gjithë të tjerët falimentojnë. Bli prona, ndërto shtëpi dhe hotele dhe mblidh qira.</p>'+
+  '<h4>Në radhën tënde</h4><ul><li>Hidh dy zaret dhe lëviz në drejtim të akrepave të orës.</li><li>Nëse kalon NISU merr '+eur(200)+'.</li><li>Dyshe: hidh përsëri. Tri dyshe radhazi: shko në burg.</li></ul>'+
+  '<h4>Prona e lirë</h4><p>Bleje me çmimin e shënuar. Nëse nuk e blen, del në ankand dhe çdo lojtar mund të ofrojë, edhe ti.</p>'+
+  '<h4>Prona e dikujt tjetër</h4><p>Paguaj qiranë. Me gjithë grupin e ngjyrës, qiraja pa ndërtesa dyfishohet. Pronat e hipotekuara nuk japin qira. Transportet: '+eur(25)+' / '+eur(50)+' / '+eur(100)+' / '+eur(200)+'. Shërbimet komunale: 4× ose 10× zaret.</p>'+
+  '<h4>Ndërtimi</h4><p>Kur ke gjithë grupin, ndërto shtëpi në mënyrë të barabartë. Pas 4 shtëpive mund të ndërtosh hotel. Banka ka vetëm 32 shtëpi dhe 12 hotele. Ndërtesat i shet te Banka për gjysmën e çmimit.</p>'+
+  '<h4>Hipoteka</h4><p>Merr gjysmën e çmimit nga Banka. Për ta shlyer paguan atë shumë plus 10%. Shit ndërtesat e grupit para se të hipotekosh.</p>'+
+  '<h4>Burgu</h4><p>Për të dalë: paguaj '+eur(50)+' para se të hedhësh, përdor letrën "Dil nga burgu falas", ose hidh dyshe. Pas përpjekjes së tretë pa sukses paguan '+eur(50)+' dhe lëviz. Në burg mund të mbledhësh qira.</p>'+
+  '<h4>Borxhi dhe falimentimi</h4><p>Nëse s\'ke para, shit ndërtesa ose hipotekoni prona. Nëse prapë nuk mjafton, falimenton dhe pasuria kalon te lojtari të cilit i ke borxh, ose te Banka.</p>'+
+  '<h4>Marrëveshjet</h4><p>Gjatë radhës tënde mund të shkëmbesh prona dhe para me lojtarët e tjerë.</p></div>');
+}
+
+/* ======================= EVENTS ======================= */
+const ACT={
+  roll:()=>roll(), buy, auction:startAuction, bid:n=>aBid(+n), pass:aPass, endTurn:()=>endTurn(),
+  payJail, useCard:useJailCard, payDebt, bankrupt:declareBankrupt,
+  deed:i=>openDeed(i), close:closeModal,
+  build:i=>{build(+i);render()}, sell:i=>{sellHouse(+i);render()}, mort:i=>{mortgage(+i);render()}, unmort:i=>{unmortgage(+i);render()},
+  trade:()=>openTrade(), propose:proposeTrade,
+  tAccept:()=>{applyTrade(modalState.t);const n=P(modalState.t.b).name;closeModal();st.msg=esc(n)+' e pranoi marrëveshjen.';render()},
+  tReject:()=>{const n=P(modalState.t.b).name;closeModal();st.msg=esc(n)+' e refuzoi marrëveshjen.';render()},
+  rules:openRules, setup:openSetup, start:startFromSetup,
+  resume:()=>{st=loadSaved();closeModal();render()},
+};
+document.addEventListener('click',e=>{
+  if(e.target.dataset&&e.target.dataset.ovl&&modalState&&modalState.k!=='tradeConfirm'&&!(modalState.k==='setup'&&!st)){closeModal();return}
+  const b=e.target.closest('[data-act]'); if(!b||b.disabled)return;
+  const f=ACT[b.dataset.act]; if(f)f(b.dataset.arg);
+});
+document.addEventListener('keydown',e=>{
+  if(e.key==='Escape'&&modalState&&modalState.k!=='tradeConfirm'&&!(modalState.k==='setup'&&!st)){closeModal();return}
+  if((e.key==='Enter'||e.key===' ')&&e.target.classList&&e.target.classList.contains('cell')){e.preventDefault();openDeed(e.target.dataset.arg)}
+});
+
+/* ======================= BOOT ======================= */
+(function boot(){
+  const saved=loadSaved();
+  if(saved&&saved.winner==null&&saved.players){st=saved;render();}
+  else{
+    // show a live sample board behind the setup dialog
+    newGame([{name:'Ti',bot:false},{name:'Arbeni',bot:true},{name:'Drita',bot:true}]);
+    openSetup();
+  }
+})();
+</script>
+
+</body>
+</html>

@@ -778,7 +778,7 @@ function handleAct(name,arg,dev){
 }
 function doAction(name,arg){
   sfxUnlock();
-  if(role==='guest'){ if(net&&net.host&&net.host.open)net.host.send({t:'act',name,arg}); return }
+  if(role==='guest'){ if(net)sendHost({t:'act',name,arg}); return }
   handleAct(name,arg,myDev);
 }
 
@@ -1153,190 +1153,209 @@ function openCredits(){
   showModal('<button class="btn sm x" data-ui="close">Mbyll</button><h3>Autorët e fotove</h3><p class="note">Fotot janë marrë nga Wikimedia Commons me licencat e tyre të lira. Faleminderit autorëve.</p><ul class="credits">'+list+'</ul>');
 }
 
-/* ======================= ONLINE: rooms over PeerJS ======================= */
-function loadPeerLib(){return new Promise((res,rej)=>{if(window.Peer)return res();const s=document.createElement('script');s.src=window.PK_PEER_LIB||'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';s.onload=()=>window.Peer?res():rej(new Error('lib'));s.onerror=()=>rej(new Error('lib'));document.head.appendChild(s)})}
+/* ======================= ONLINE: rooms over a message relay ======================= */
+/* Game data goes through public MQTT brokers over secure WebSockets. Every phone connects
+   OUT to the broker, so it works on any mobile network or Wi-Fi. Three brokers are used at once;
+   as long as one answers, the game carries on. Voice still goes phone-to-phone (PeerJS/WebRTC). */
+const BROKERS=window.PK_BROKERS||['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt','wss://mqtt.eclipseprojects.io:443/mqtt'];
+const MQTT_LIB=window.PK_MQTT_LIB||'https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js';
+const PEER_LIB=window.PK_PEER_LIB||'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
+const TOPIC='pronat-kosoves/v2/';
+function loadScript(src,ok){return new Promise((res,rej)=>{if(ok())return res();const s=document.createElement('script');s.src=src;s.onload=()=>ok()?res():rej(new Error('lib'));s.onerror=()=>rej(new Error('lib'));document.head.appendChild(s)})}
+const loadMqtt=()=>loadScript(MQTT_LIB,()=>!!window.mqtt);
+const loadPeerLib=()=>loadScript(PEER_LIB,()=>!!window.Peer);
 const randCode=()=>{const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';let s='';for(let i=0;i<5;i++)s+=A[Math.floor(Math.random()*A.length)];return s};
+const rid=()=>Math.random().toString(36).slice(2,10)+Date.now().toString(36).slice(-4);
 function netMsg(t){const el=$('#netmsg');if(el)el.textContent=t;else toastRoom(t)}
 function toastRoom(t){if(net){net.note=t;renderRoom()}}
 function myName(){const v=($('#on-name')&&$('#on-name').value.trim())||'';try{if(v)localStorage.setItem('pk-name',v)}catch(e){}return v.slice(0,16)}
-function netErrorText(e){
-  const t=e&&e.type;
-  if(t==='peer-unavailable')return 'Nuk u gjet asnjë dhomë me këtë kod. Kontrollo kodin.';
-  if(t==='browser-incompatible'||t==='webrtc')return 'Ky shfletues nuk lejon lidhje online. Hap lojën nga linku publik në Chrome, Safari ose Firefox.';
-  if(t==='network'||t==='server-error'||t==='socket-error'||t==='socket-closed')return 'Nuk u lidh me serverin. Kontrollo internetin dhe provo përsëri.';
-  return 'Lidhja online nuk punon këtu. Hap lojën nga linku publik (jo brenda kësaj dritareje).';
-}
-function peerOpts(){return Object.assign({debug:0},window.PK_PEER_OPTS||{})}
 let memTok='';
-function myTok(){let t='';try{t=sessionStorage.getItem('pk-tok')||''}catch(e){}if(!t)t=memTok;if(!t){t=Math.random().toString(36).slice(2)+Date.now().toString(36);try{sessionStorage.setItem('pk-tok',t)}catch(e){}}memTok=t;return t}
+function myTok(){let t='';try{t=localStorage.getItem('pk-tok')||''}catch(e){}if(!t)t=memTok;if(!t){t='d'+rid();try{localStorage.setItem('pk-tok',t)}catch(e){}}memTok=t;return t}
 let wakeLock=null;
 async function keepAwake(){try{if(navigator.wakeLock&&document.visibilityState==='visible'&&!wakeLock&&net){wakeLock=await navigator.wakeLock.request('screen');wakeLock.addEventListener('release',()=>{wakeLock=null})}}catch(e){}}
+
+/* ---- the bus: same messages on every broker, duplicates dropped by id ---- */
+function busOpen(subs,onMsg){
+  const bus={clients:[],seen:new Set(),seenQ:[],up:0,onMsg};
+  BROKERS.forEach(url=>{
+    let c; try{c=mqtt.connect(url,{clientId:'pk'+rid(),clean:true,connectTimeout:10000,reconnectPeriod:2000,keepalive:20,protocolVersion:4})}catch(e){return}
+    c._up=false;
+    c.on('connect',()=>{c._up=true;bus.up=bus.clients.filter(x=>x._up).length;c.subscribe(subs.map(s=>TOPIC+s),{qos:0});if(bus.onUp)bus.onUp()});
+    const down=()=>{if(c._up){c._up=false;bus.up=bus.clients.filter(x=>x._up).length;if(bus.onDown)bus.onDown()}};
+    c.on('close',down); c.on('offline',down); c.on('error',()=>{});
+    c.on('message',(topic,payload)=>{
+      if(!payload||!payload.length)return;
+      let d; try{d=JSON.parse(new TextDecoder().decode(payload))}catch(e){return}
+      if(!d||typeof d!=='object')return;
+      if(d.mid){if(bus.seen.has(d.mid))return;bus.seen.add(d.mid);bus.seenQ.push(d.mid);if(bus.seenQ.length>400)bus.seen.delete(bus.seenQ.shift())}
+      bus.onMsg(topic.slice(TOPIC.length),d);
+    });
+    bus.clients.push(c);
+  });
+  return bus;
+}
+function busPub(bus,sub,obj,retain){
+  if(!bus)return; obj.mid=obj.mid||rid(); const s=JSON.stringify(obj);
+  bus.clients.forEach(c=>{try{if(c._up)c.publish(TOPIC+sub,s,{qos:0,retain:!!retain})}catch(e){}});
+}
+function busClear(bus,sub){bus.clients.forEach(c=>{try{if(c._up)c.publish(TOPIC+sub,'',{qos:0,retain:true})}catch(e){}})}
+function busClose(bus){if(!bus)return;bus.clients.forEach(c=>{try{c.end(true)}catch(e){}})}
+
+/* ---- voice peer (optional; the game works without it) ---- */
+async function startVoicePeer(){
+  const myNet=net;
+  try{await loadPeerLib()}catch(e){return}
+  if(net!==myNet||typeof RTCPeerConnection==='undefined')return;
+  let peer; try{peer=new Peer(Object.assign({debug:0},window.PK_PEER_OPTS||{}))}catch(e){return}
+  net.peer=peer;
+  peer.on('open',id=>{if(net!==myNet)return;const me=myMember();if(me)me.pid=id;if(role==='host')sendLobby();else sendHost({t:'pid',pid:id});renderRoom()});
+  peer.on('disconnected',()=>{setTimeout(()=>{if(net===myNet&&peer.disconnected&&!peer.destroyed){try{peer.reconnect()}catch(e){}}},1500)});
+  peer.on('error',()=>{});
+  peer.on('call',onCall);
+}
+function myMember(){return net&&net.members.find(m=>m.dev===myDev)}
+function myPid(){return net&&net.peer&&net.peer.open?net.peer.id:''}
+
+/* ---- host ---- */
 async function hostRoom(){
   const name=myName(); if(!name){netMsg('Shkruaj emrin tënd.');return}
-  if(typeof RTCPeerConnection==='undefined'){netMsg(netErrorText({type:'webrtc'}));return}
   netMsg('Duke krijuar lojën…');
-  try{await loadPeerLib()}catch(e){netMsg('Nuk u ngarkua moduli online. Kontrollo internetin.');return}
+  try{await loadMqtt()}catch(e){netMsg('Nuk u ngarkua moduli online. Kontrollo internetin.');return}
   leaveNet();
   role='host'; myDev='host';
   const code=randCode();
-  net={peer:null,code,conns:{},members:[{dev:'host',pid:PEER_PREFIX+code,name,voice:'off',tok:'host'}],bots:0,voice:{calls:{},on:false},host:null,note:'',fresh:true,status:'connecting'};
-  startHostPeer();
-}
-function startHostPeer(){
-  if(!net||role!=='host')return;
+  net={code,hs:rid(),seq:0,members:[{dev:'host',tok:'host',pid:'',name,voice:'off',seen:Date.now()}],bots:0,voice:{calls:{},on:false},note:'',status:'connecting',acts:new Set()};
   const myNet=net;
-  const peer=new Peer(PEER_PREFIX+net.code,peerOpts()); net.peer=peer;
-  peer.on('open',()=>{if(net!==myNet)return;net.status='online';net.fresh=false;net.note='';keepAwake();if(st&&st.online)renderRoom();else openLobby()});
-  peer.on('disconnected',()=>{
-    if(net!==myNet||peer.destroyed)return; net.status='reconnecting'; refreshNetUI();
-    setTimeout(()=>{if(net===myNet&&peer.disconnected&&!peer.destroyed){try{peer.reconnect()}catch(e){}}},1200);
-  });
-  peer.on('error',e=>{
-    if(net!==myNet)return;
-    if(e.type==='peer-unavailable')return;
-    if(e.type==='unavailable-id'){
-      try{peer.destroy()}catch(x){}
-      if(net.fresh){net.code=randCode();net.members[0].pid=PEER_PREFIX+net.code;startHostPeer();return}
-      // the server still remembers our previous connection: wait for it to expire and take the code back
-      net.status='reconnecting'; refreshNetUI(); setTimeout(()=>{if(net===myNet)startHostPeer()},4000); return;
-    }
-    if(['network','server-error','socket-error','socket-closed','disconnected'].includes(e.type)){
-      net.status='reconnecting'; refreshNetUI();
-      setTimeout(()=>{if(net!==myNet)return;if(peer.destroyed)startHostPeer();else if(peer.disconnected){try{peer.reconnect()}catch(x){}}},3000);
-      return;
-    }
-    netMsg(netErrorText(e)); toastRoom(netErrorText(e));
-  });
-  peer.on('connection',conn=>{
-    conn.on('data',d=>{if(net===myNet)onHostData(conn,d)});
-    conn.on('close',()=>{if(net===myNet)onHostClose(conn)});
-    conn.on('error',()=>{});
-  });
-  peer.on('call',onCall);
+  net.bus=busOpen([code+'/g'],(sub,d)=>{if(net===myNet)onHostMsg(d)});
+  net.bus.onUp=()=>{if(net!==myNet)return;const was=net.status;net.status='online';sendLobby();if(st&&st.online)broadcast(true);keepAwake();if(was!=='online'){if(st&&st.online)renderRoom();else openLobby()}};
+  net.bus.onDown=()=>{if(net!==myNet)return;if(!net.bus.up){net.status='connecting';refreshNetUI()}};
+  startVoicePeer();
 }
 function refreshNetUI(){renderRoom();if(modalState&&modalState.k==='lobby')openLobby()}
 function uniqueName(n){let x=n,k=2;while(net.members.some(m=>m.name===x))x=n+' '+k++;return x}
-function onHostData(conn,d){
-  if(!d||typeof d!=='object')return;
+function onHostMsg(d){
+  const tok=typeof d.from==='string'?d.from.slice(0,40):''; if(!tok||tok==='host')return;
+  let m=net.members.find(x=>x.dev===tok);
+  if(m)m.seen=Date.now();
   if(d.t==='hello'){
-    const name=String(d.name||'Shok').slice(0,16), tok=String(d.tok||conn.peer).slice(0,40);
-    net.conns[conn.peer]=conn;
-    // the same device coming back (new connection after a drop): replace the old entry
-    const old=net.members.find(m=>m.tok===tok&&m.dev!=='host');
-    if(old&&old.pid!==conn.peer){const oc=net.conns[old.pid];delete net.conns[old.pid];dropCall(old.pid);if(oc){try{oc.close()}catch(e){}}}
-    net.members=net.members.filter(m=>m.tok!==tok||m.dev==='host');
+    const name=String(d.name||'Shok').slice(0,16);
+    if(!m){
+      let seat=-1;
+      if(st&&st.online){seat=st.players.findIndex(p=>p.dev===tok&&!p.out);if(seat<0)seat=st.players.findIndex(p=>p.away&&p.name===name&&!p.out)}
+      m={dev:tok,tok,pid:String(d.pid||''),name:seat>=0?P(seat).name:uniqueName(name),voice:'off',seen:Date.now(),spectator:!!(st&&st.online&&seat<0)};
+      net.members.push(m);
+      if(seat>=0){const p=P(seat);p.dev=tok;p.bot=false;p.away=false;log(pname(seat)+' u lidh përsëri.')}
+    }else if(d.pid)m.pid=String(d.pid);
+    sendLobby();
     if(st&&st.online){
-      let seat=st.players.findIndex(p=>p.tok===tok&&!p.out);
-      if(seat<0)seat=st.players.findIndex(p=>p.away&&p.name===name&&!p.out);
-      if(seat>=0){const p=P(seat);const back=p.away||p.dev!==conn.peer;p.dev=conn.peer;p.tok=tok;p.bot=false;p.away=false;if(back)log(pname(seat)+' u lidh përsëri.');}
-      net.members.push({dev:conn.peer,pid:conn.peer,name:seat>=0?P(seat).name:uniqueName(name),voice:'off',tok,spectator:seat<0});
-      sendLobby(); render();
-    }else{
-      net.members.push({dev:conn.peer,pid:conn.peer,name:old?old.name:uniqueName(name),voice:'off',tok});
-      sendLobby(); openLobby();
-    }
+      const seat=st.players.findIndex(p=>p.dev===tok&&!p.out);
+      if(seat>=0&&P(seat).away){P(seat).bot=false;P(seat).away=false;log(pname(seat)+' u lidh përsëri.')}
+      render();broadcast(true);
+    }else if(modalState&&modalState.k==='lobby')openLobby();
     return;
   }
-  if(d.t==='act'){handleAct(String(d.name),d.arg,conn.peer);return}
-  if(d.t==='voice'){const m=net.members.find(m=>m.pid===conn.peer);if(m){m.voice=d.v;sendLobby();renderRoom()}return}
+  if(!m)return;
+  if(d.t==='act'){if(net.acts.has(d.mid))return;net.acts.add(d.mid);handleAct(String(d.name),d.arg,tok);return}
+  if(d.t==='pid'){m.pid=String(d.pid||'');sendLobby();return}
+  if(d.t==='voice'){m.voice=['on','muted','off'].includes(d.v)?d.v:'off';sendLobby();renderRoom();if(modalState&&modalState.k==='lobby')openLobby();return}
+  if(d.t==='bye'){dropMember(m);return}
 }
-function onHostClose(conn){
-  if(!net)return;
-  if(net.conns[conn.peer]===conn)delete net.conns[conn.peer];
-  const was=net.members.find(m=>m.pid===conn.peer);
-  if(!was)return; // already replaced by a newer connection from the same device
-  net.members=net.members.filter(m=>m.pid!==conn.peer);
-  dropCall(conn.peer);
+function dropMember(m){
+  net.members=net.members.filter(x=>x!==m);
+  if(m.pid)dropCall(m.pid);
   if(st&&st.online){
-    const seat=st.players.findIndex(p=>p.dev===conn.peer);
-    if(seat>=0&&!P(seat).out){P(seat).bot=true;P(seat).away=true;log(pname(seat)+' u shkëput. Kompjuteri luan për të derisa të rikthehet.');render()}
+    const seat=st.players.findIndex(p=>p.dev===m.dev);
+    if(seat>=0&&!P(seat).out&&!P(seat).bot){P(seat).bot=true;P(seat).away=true;log(pname(seat)+' u shkëput. Kompjuteri luan për të derisa të rikthehet.');render()}
   }else if(modalState&&modalState.k==='lobby')openLobby();
-  sendLobby();
+  sendLobby(); renderRoom();
 }
-function sendAll(msg){if(!net)return;Object.values(net.conns).forEach(c=>{try{if(c.open)c.send(msg)}catch(e){}})}
-function sendLobby(){if(role!=='host')return;sendAll({t:'lobby',code:net.code,members:net.members.map(m=>({pid:m.pid,name:m.name,voice:m.voice})),started:!!(st&&st.online),bots:net.bots})}
-let bcPending=false;
-function broadcast(){if(role!=='host'||!st||!st.online||bcPending)return;bcPending=true;queueMicrotask(()=>{bcPending=false;sendAll({t:'state',st,busy})})}
-const JOIN_TRIES=40;
+function sendLobby(){
+  if(role!=='host'||!net)return;
+  busPub(net.bus,net.code+'/l',{t:'lobby',hs:net.hs,ts:Date.now(),code:net.code,members:net.members.map(m=>({dev:m.dev,pid:m.pid,name:m.name,voice:m.voice})),started:!!(st&&st.online),bots:net.bots},true);
+}
+let bcTimer=null,bcLast=0;
+function broadcast(now){
+  if(role!=='host'||!net||!st||!st.online)return;
+  const go=()=>{bcTimer=null;bcLast=Date.now();net.seq++;const s=Object.assign({},st,{log:st.log.slice(0,40)});busPub(net.bus,net.code+'/s',{t:'state',hs:net.hs,seq:net.seq,st:s,busy},true)};
+  if(now){if(bcTimer){clearTimeout(bcTimer);bcTimer=null}go();return}
+  if(bcTimer)return;
+  const wait=Math.max(0,200-(Date.now()-bcLast)); bcTimer=setTimeout(go,wait);
+}
+
+/* ---- guest ---- */
 async function joinRoom(){
   const name=myName(); if(!name){netMsg('Shkruaj emrin tënd.');return}
-  const code=($('#on-code').value||'').trim().toUpperCase(); if(code.length<4){netMsg('Shkruaj kodin e lojës.');return}
-  if(typeof RTCPeerConnection==='undefined'){netMsg(netErrorText({type:'webrtc'}));return}
+  const code=($('#on-code').value||'').trim().toUpperCase().replace(/[^A-Z0-9]/g,''); if(code.length<4){netMsg('Shkruaj kodin e lojës.');return}
   netMsg('Duke u lidhur…');
-  try{await loadPeerLib()}catch(e){netMsg('Nuk u ngarkua moduli online. Kontrollo internetin.');return}
+  try{await loadMqtt()}catch(e){netMsg('Nuk u ngarkua moduli online. Kontrollo internetin.');return}
   leaveNet();
-  role='guest';
-  net={peer:null,code,conns:{},members:[],voice:{calls:{},on:false},host:null,note:'',myName:name,tries:0,joined:false,connecting:0};
-  startGuestPeer();
-}
-function startGuestPeer(){
-  const myNet=net; const peer=new Peer(peerOpts()); net.peer=peer;
-  peer.on('open',id=>{if(net!==myNet)return;if(myDev!==id&&net.voice.on){leaveVoice(true)}myDev=id;connectHost()});
-  peer.on('disconnected',()=>{if(net!==myNet||peer.destroyed)return;setTimeout(()=>{if(net===myNet&&peer.disconnected&&!peer.destroyed){try{peer.reconnect()}catch(e){}}},1200)});
-  peer.on('error',e=>{
-    if(net!==myNet)return;
-    if(e.type==='peer-unavailable'){
-      net.connecting=0; net.tries++;
-      if(net.tries<=JOIN_TRIES){
-        const m=net.joined?'Krijuesi i lojës u shkëput. Duke pritur që të kthehet…':'Duke kërkuar lojën '+net.code+'… Krijuesi i lojës duhet ta ketë faqen e lojës të hapur.';
-        net.note=m; netMsg(m); renderRoom();
-        setTimeout(()=>{if(net===myNet)connectHost()},3000); return;
-      }
-      const c=net.code; leaveNet();
-      netMsg('Loja '+c+' nuk u gjet. Kërkoji shokut të hapë faqen e lojës (ose të krijojë lojë të re dhe të të dërgojë linkun e ri), pastaj provo përsëri.');
-      return;
-    }
-    if(['network','server-error','socket-error','socket-closed','disconnected'].includes(e.type)){
-      net.note='Interneti u ndërpre. Duke u rilidhur…'; renderRoom();
-      setTimeout(()=>{if(net!==myNet)return;if(peer.destroyed)startGuestPeer();else if(peer.disconnected){try{peer.reconnect()}catch(x){}}},3000);
-      return;
-    }
-    netMsg(netErrorText(e));
-  });
-  peer.on('call',onCall);
-}
-function connectHost(){
-  if(!net||role!=='guest'||!net.peer||net.peer.disconnected||net.peer.destroyed)return;
+  role='guest'; myDev=myTok();
+  net={code,members:[],voice:{calls:{},on:false},note:'',myName:name,joined:false,hostSeen:0,hs:'',seq:0,started:Date.now()};
   const myNet=net;
-  if(net.host){const o=net.host;net.host=null;try{o.close()}catch(e){}}
-  const c=net.peer.connect(PEER_PREFIX+net.code,{reliable:true}); if(!c)return;
-  net.host=c; net.connecting=Date.now();
-  c.on('open',()=>{
-    if(net!==myNet||net.host!==c)return;
-    net.connecting=0; net.tries=0; net.note='';
-    c.send({t:'hello',name:net.myName,tok:myTok()});
-    net.joined=true; try{sessionStorage.setItem('pk-join',JSON.stringify({code:net.code,name:net.myName}))}catch(e){}
-    keepAwake(); if(st&&st.online)renderRoom(); else openLobby();
-  });
-  c.on('data',d=>{if(net===myNet&&net.host===c)onGuestData(d)});
-  c.on('close',()=>{
-    if(net!==myNet||net.host!==c)return;
-    net.connecting=0; net.note='Lidhja me krijuesin e lojës u ndërpre. Duke u rilidhur…'; renderRoom();
-    if(modalState&&modalState.k==='lobby')openLobby();
-    setTimeout(()=>{if(net===myNet&&(!net.host||net.host===c))connectHost()},2500);
-  });
-  c.on('error',()=>{});
+  net.bus=busOpen([code+'/l',code+'/s'],(sub,d)=>{if(net===myNet)onGuestMsg(sub,d)});
+  net.bus.onUp=()=>{if(net!==myNet)return;sendHello();};
+  startVoicePeer();
+  try{sessionStorage.setItem('pk-join',JSON.stringify({code,name}))}catch(e){}
 }
-/* keep the connection alive when a phone wakes the page up again */
-function netWatch(){
-  if(!net||!net.peer)return; const p=net.peer;
-  if(p.disconnected&&!p.destroyed){try{p.reconnect()}catch(e){}return}
-  if(role==='guest'&&p.open&&net.joined&&(!net.host||!net.host.open)&&(!net.connecting||Date.now()-net.connecting>15000))connectHost();
-}
-setInterval(netWatch,4000);
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'){netWatch();keepAwake()}});
-function onGuestData(d){
-  if(!d||typeof d!=='object')return;
-  if(d.t==='lobby'){net.members=d.members||[];net.code=d.code;if(!d.started&&modalState&&modalState.k==='lobby')openLobby();renderRoom();return}
+function sendHost(o){if(role!=='guest'||!net)return;o.from=myDev;busPub(net.bus,net.code+'/g',o,false)}
+function sendHello(){sendHost({t:'hello',name:net.myName,pid:myPid()})}
+function onGuestMsg(sub,d){
+  if(d.t==='lobby'){
+    if(Date.now()-(+d.ts||0)>45000&&!net.hostSeen){net.note='Loja '+net.code+' u gjet, por krijuesi nuk është online tani. Duke pritur…';refreshNetUI();return}
+    net.hostSeen=Date.now();
+    if(net.hs&&d.hs!==net.hs){net.seq=0} net.hs=d.hs;
+    net.members=Array.isArray(d.members)?d.members:[];
+    const inside=net.members.some(m=>m.dev===myDev);
+    if(!inside){sendHello();return}
+    const first=!net.joined; net.joined=true; net.note='';
+    keepAwake();
+    if(d.started){if(!st||!st.online){/* state arrives on its own topic */}renderRoom()}
+    else if(first||(modalState&&modalState.k==='lobby'))openLobby();
+    renderRoom();
+    return;
+  }
   if(d.t==='state'&&d.st&&Array.isArray(d.st.players)){
+    if(d.hs!==net.hs&&net.hs){/* a new host session: accept */}
+    if(d.hs===net.hs&&d.seq<=net.seq)return;
+    net.hs=d.hs; net.seq=d.seq; net.hostSeen=Date.now();
+    if(!d.st.players.some(p=>p.dev===myDev)&&!net.members.some(m=>m.dev===myDev))return; // not our match yet
     const first=!st||!st.online; st=d.st; busy=!!d.busy;
     if(first){shownRoll=st.rollSeq;if(modalState&&(modalState.k==='lobby'||modalState.k==='setup'))closeModal()}
     render();
   }
 }
+
+/* ---- keep-alive: pings, timeouts, waking up ---- */
+setInterval(()=>{
+  if(!net||!net.bus)return;
+  if(role==='host'){
+    sendLobby(); // also a heartbeat
+    if(st&&st.online)broadcast(true); // late joiners and brokers without retained messages get the board too
+    const now=Date.now();
+    // the host's own page was asleep (phone in another app): don't blame the guests for the silence
+    if(!net.tick||now-net.tick>12000||!net.bus.up)net.members.forEach(m=>m.seen=now);
+    net.tick=now;
+    net.members.filter(m=>m.dev!=='host'&&now-m.seen>25000).forEach(dropMember);
+  }else if(role==='guest'){
+    sendHost({t:net.joined?'ping':'hello',name:net.myName,pid:myPid()});
+    if(!net.joined&&Date.now()-net.started>6000){const n=!net.bus.up?'Duke u lidhur me serverin… Kontrollo internetin.':net.hostSeen?'Loja u gjet. Duke pritur që krijuesi i lojës të kthehet te faqja e lojës…':'Duke kërkuar lojën '+net.code+'… Krijuesi i lojës duhet ta ketë faqen e lojës të hapur.';if(n!==net.note){net.note=n;netMsg(n);renderRoom()}}
+    if(net.joined&&net.hostSeen&&Date.now()-net.hostSeen>20000){net.note='Krijuesi i lojës nuk përgjigjet. Duke pritur që të kthehet…';renderRoom()}
+    else if(net.joined&&net.note&&Date.now()-net.hostSeen<12000){net.note='';renderRoom()}
+  }
+},4000);
+document.addEventListener('visibilitychange',()=>{
+  if(document.visibilityState!=='visible'||!net||!net.bus)return;
+  keepAwake();
+  net.bus.clients.forEach(c=>{if(!c.connected){try{c.reconnect()}catch(e){}}});
+  if(net.peer&&net.peer.disconnected&&!net.peer.destroyed){try{net.peer.reconnect()}catch(e){}}
+  if(role==='host'){sendLobby();broadcast(true)}else sendHello();
+});
 function leaveNet(){
   if(!net)return; leaveVoice(true);
-  try{net.peer.destroy()}catch(e){}
+  if(role==='host'&&net.bus){busClear(net.bus,net.code+'/l');busClear(net.bus,net.code+'/s')}
+  else if(role==='guest')sendHost({t:'bye'});
+  const b=net.bus; setTimeout(()=>busClose(b),300);
+  try{if(net.peer)net.peer.destroy()}catch(e){}
   net=null; role='offline'; myDev='local'; try{if(wakeLock)wakeLock.release()}catch(e){} wakeLock=null; renderRoom();
 }
 function inviteLink(){if(!ONLINE_OK)return PUBLIC_URL+'?dhoma='+net.code;const u=new URL(location.href);u.search='?dhoma='+net.code;u.hash='';return u.toString()}
@@ -1348,7 +1367,7 @@ function netStatusLine(){if(!net)return'';if(role==='host')return '<p class="not
 function openLobby(){
   if(!net)return; modalState={k:'lobby'};
   const host=role==='host';
-  const mem=net.members.map(m=>'<div class="mem">'+micBadge(m)+'<span>'+esc(m.name)+(m.pid===(net.peer&&net.peer.id)?' (ti)':'')+'</span></div>').join('')||'<p class="note">Duke pritur lojtarët…</p>';
+  const mem=net.members.map(m=>'<div class="mem">'+micBadge(m)+'<span>'+esc(m.name)+(m.dev===myDev?' (ti)':'')+'</span></div>').join('')||'<p class="note">Duke pritur lojtarët…</p>';
   const humans=net.members.length;
   showModal('<button class="btn sm x" data-ui="close">Mbyll</button><h3>Dhoma online</h3>'+
     '<p class="note">Kodi i lojës</p><div class="big-code">'+esc(net.code||'…')+'</div>'+netStatusLine()+
@@ -1379,12 +1398,13 @@ function voiceButtons(){
   return '<div class="row" style="margin-top:6px"><button class="btn '+(v.muted?'dan':'on')+'" data-ui="mute">'+(v.muted?'Je i heshtur – ndize mikrofonin':'Mikrofoni ndezur – hesht')+'</button><button class="btn sm" data-ui="voiceOff">Dil nga biseda</button></div>'+(v.listenOnly?'<p class="note">Mikrofoni nuk u lejua: vetëm dëgjon.</p>':'');
 }
 function setMyVoice(state){
-  if(!net)return; const me=net.members.find(m=>m.pid===myPid()); if(me)me.voice=state;
-  if(role==='host'){sendLobby()}else if(net.host&&net.host.open)net.host.send({t:'voice',v:state});
+  if(!net)return; const me=myMember(); if(me)me.voice=state;
+  if(role==='host'){sendLobby()}else sendHost({t:'voice',v:state});
   renderRoom(); if(modalState&&modalState.k==='lobby')openLobby();
 }
 async function joinVoice(){
   if(!net||net.voice.on)return; sfxUnlock(); const v=net.voice;
+  if(!myPid()){toastRoom('Zëri po lidhet ende. Provo përsëri pas pak sekondash.');if(!net.peer)startVoicePeer();return}
   try{ v.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}); v.listenOnly=false }
   catch(e){ try{const dst=actx.createMediaStreamDestination();v.stream=dst.stream}catch(x){v.stream=new MediaStream()} v.listenOnly=true }
   v.on=true; v.muted=false; meterFor(myPid(),v.stream);
@@ -1442,7 +1462,7 @@ function meterFor(pid,stream){
 function renderRoom(){
   const el=$('#room'); if(!net){el.hidden=true;el.innerHTML='';return}
   el.hidden=false;
-  const mem=net.members.map(m=>'<div class="mem">'+micBadge(m)+'<span>'+esc(m.name)+(m.pid===myPid()?' (ti)':'')+(m.spectator?' · shikues':'')+'</span></div>').join('');
+  const mem=net.members.map(m=>'<div class="mem">'+micBadge(m)+'<span>'+esc(m.name)+(m.dev===myDev?' (ti)':'')+(m.spectator?' · shikues':'')+'</span></div>').join('');
   el.innerHTML='<h2>Dhoma online · <span class="code" style="font-size:14px">'+esc(net.code||'')+'</span></h2><div class="members">'+mem+'</div>'+voiceButtons()+
     '<div class="row" style="margin-top:10px">'+(st&&st.online?'':'<button class="btn sm" data-ui="lobby">Hap dhomën</button>')+'<button class="btn sm" data-ui="copyLink">Kopjo linkun</button><button class="btn sm dan" data-ui="leave">Dil nga dhoma</button></div>'+
     (net.note?'<p class="netmsg">'+esc(net.note)+'</p>':'')+(role==='host'&&net.status!=='online'?'<p class="netmsg">Duke u rilidhur me serverin…</p>':'');

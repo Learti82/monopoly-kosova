@@ -191,6 +191,11 @@ button:focus-visible,input:focus-visible,select:focus-visible,.cell:focus-visibl
 .pchip{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:999px;padding:3px 10px 3px 3px;font-size:12px;font-weight:700}
 .pchip i{width:22px;height:22px;border-radius:50%;display:block;background:center/cover;border:2px solid}
 .pchip.m{opacity:.55;text-decoration:line-through}
+.tbar{position:relative;height:22px;border-radius:99px;background:var(--panel-2);border:1px solid var(--line);overflow:hidden;margin:0 0 10px}
+.tbar i{position:absolute;left:0;top:0;bottom:0;background:linear-gradient(90deg,var(--ok),#7bd88f);transition:width .2s linear}
+.tbar.low i{background:var(--danger)}
+.tbar b{position:relative;display:block;text-align:center;font:700 12px/20px var(--f-mono);color:var(--ink)}
+.tbar.mini{height:6px;margin:4px 0 0;border:0}.tbar.mini b{display:none}
 .log{max-height:240px;overflow:auto;font-size:13px;display:flex;flex-direction:column;padding-right:4px}
 .log div{padding:5px 0;border-bottom:1px solid var(--line)}
 .log div:last-child{border:0}
@@ -487,11 +492,11 @@ function rentOf(i,opt={}){
 }
 
 /* ======================= GAME SETUP ======================= */
-function newGame(cfg,online){
+function newGame(cfg,online,turnSec){
   st={players:cfg.map((c,i)=>({name:c.name,bot:c.bot,dev:c.dev||'local',tok:c.tok||'',fig:c.fig!=null?c.fig:i,color:PCOL[i],money:1500,pos:0,jail:false,jailTurns:0,cards:[],out:false})),
     own:{},cur:0,phase:'roll',dbl:0,again:false,dice:[3,4],rollSeq:0,log:[],online:!!online,
     decks:{sh:shuffle([...Array(CARDS.sh.length).keys()]),ch:shuffle([...Array(CARDS.ch.length).keys()])},
-    pend:null,offer:null,houses:32,hotels:12,msg:'',card:null,winner:null,turnNo:1,gid:Math.random().toString(36).slice(2,9)};
+    pend:null,offer:null,houses:32,hotels:12,msg:'',card:null,winner:null,turnNo:1,gid:Math.random().toString(36).slice(2,9),turnSec:turnSec==null?20:turnSec,deadline:null,boughtTurn:false};
   log('Loja filloi. Secili lojtar merr '+eur(1500)+'.');
   st.msg=esc(curP().name)+' fillon i pari. Kliko zaret për t\'i hedhur.';
   shownRoll=0; closeModal(); render();
@@ -519,8 +524,10 @@ async function land(pi,opt={}){
   const p=P(pi),i=p.pos,s=S[i];
   if(ownable(i)){
     const o=st.own[i];
+    if(!o&&st.boughtTurn){st.msg=esc(p.name)+' qëndron në '+esc(s.n)+', por ka blerë tashmë një pronë në këtë radhë. Mund të blesh vetëm një pronë për radhë.';log(pname(pi)+' nuk mund të blejë '+esc(s.n)+': vetëm një blerje për radhë.');return}
     if(!o){st.pend={k:'buy',i};st.msg=esc(p.name)+' qëndron në '+esc(s.n)+'. Pronë e lirë: '+eur(s.p)+'.';return}
     if(o.o===pi){st.msg=esc(p.name)+' është në pronën e vet.';return}
+    if(st.again){st.msg=esc(p.name)+' qëndron në '+esc(s.n)+' të '+esc(P(o.o).name)+'. Hodhe dyshe: qiranë e paguan vetëm aty ku ndalon në fund të radhës.';log(pname(pi)+' kalon pa paguar qira në '+esc(s.n)+' (dyshe – paguhet vetëm në ndalesën e fundit).');return}
     if(o.m){st.msg=esc(s.n)+' është e hipotekuar. Nuk paguhet qira.';log(pname(pi)+' qëndroi në '+esc(s.n)+' (e hipotekuar).');return}
     let ro=opt;
     if(s.t==='ut'&&opt.util10){const a=d6(),b=d6();ro={util10:true,utilRoll:a+b};log(pname(pi)+' hodhi '+(a+b)+' për shërbimin komunal.')}
@@ -577,16 +584,6 @@ function forcePay(pi,amt,to){
   else bankrupt(pi,to);
 }
 function liquidValue(pi){let v=P(pi).money;propsOf(pi).forEach(i=>{const o=st.own[i],s=S[i];if(s.t==='st')v+=o.h*GR[s.g].h/2;if(!o.m)v+=s.p/2});return v}
-function autoRaise(pi,need){
-  let guard=200;
-  while(P(pi).money<need&&guard--){
-    const withH=propsOf(pi).filter(i=>st.own[i].h>0&&canSell(i,true));
-    if(withH.length){withH.sort((a,b)=>st.own[b].h-st.own[a].h);sellHouse(withH[0],true);continue}
-    const mo=propsOf(pi).filter(i=>canMortgage(i)).sort((a,b)=>S[a].p-S[b].p);
-    if(mo.length){mortgage(mo[0]);continue}
-    break;
-  }
-}
 function payDebt(){
   const d=st.pend; if(!d||d.k!=='debt')return; const p=P(d.pi);
   const total=d.list.reduce((a,b)=>a+b.amt,0); if(p.money<total)return;
@@ -695,7 +692,7 @@ function endTurn(force){
   st.offer=null;
   let n=st.cur; do{n=(n+1)%st.players.length}while(P(n).out);
   if(n<=st.cur) st.turnNo++;
-  st.cur=n;st.phase='roll';st.dbl=0;st.again=false;st.card=null;
+  st.cur=n;st.phase='roll';st.dbl=0;st.again=false;st.card=null;st.boughtTurn=false;
   st.msg='Radha e '+esc(P(n).name)+(P(n).jail?' (në burg)':'')+'. Kliko zaret.';
   render();
 }
@@ -713,7 +710,7 @@ function useJailCard(){
 function buy(){
   const d=st.pend; if(!d||d.k!=='buy')return; const p=curP(),s=S[d.i];
   if(p.money<s.p)return;
-  p.money-=s.p; st.own[d.i]={o:st.cur,h:0,m:false}; st.pend=null;
+  p.money-=s.p; st.own[d.i]={o:st.cur,h:0,m:false}; st.pend=null; st.boughtTurn=true;
   log(pname(st.cur)+' bleu '+esc(s.n)+' për '+eur(s.p)+'.'); st.msg=esc(p.name)+' bleu '+esc(s.n)+'.'; sfx('coin');
   cont();
 }
@@ -801,12 +798,132 @@ function scheduleBot(){
   botTimer=setTimeout(async()=>{botTimer=null;if(needsBot())await botStep();},reduced?250:900);
 }
 function completesSet(pi,i){const s=S[i];if(!s.g)return false;return groupOf(s.g).filter(k=>k!==i).every(k=>st.own[k]&&st.own[k].o===pi)}
+/* how good each colour group is: landing frequency (jail sends many to orange/red) and rent per house money */
+const GSTR={br:.75,lb:1.0,pk:1.05,or:1.3,rd:1.2,ye:1.05,gr:.95,db:1.0};
+function setInfo(pi,g){
+  const ids=groupOf(g),mine=ids.filter(k=>st.own[k]&&st.own[k].o===pi),theirs=ids.filter(k=>st.own[k]&&st.own[k].o!==pi);
+  return {n:ids.length,mine:mine.length,theirs:theirs.length,owners:new Set(theirs.map(k=>st.own[k].o)),free:ids.length-mine.length-theirs.length};
+}
+function hasMonopoly(pi){return Object.keys(GR).some(g=>ownsAll(pi,g))}
+/* what property i is worth to player pi if pi got it (pi does not own it now) */
+function worth(pi,i){
+  const s=S[i]; let v=s.p;
+  if(s.t==='st'){
+    const rest=groupOf(s.g).filter(k=>k!==i), mine=rest.filter(k=>st.own[k]&&st.own[k].o===pi).length;
+    const theirs=rest.filter(k=>st.own[k]&&st.own[k].o!==pi), owners=new Set(theirs.map(k=>st.own[k].o));
+    v*=GSTR[s.g];
+    if(mine===rest.length)v*=2.4;                                   // completes my set
+    else if(theirs.length===0&&mine>0)v*=1.4;                       // builds towards one
+    else if(owners.size===1&&theirs.length===rest.length)v*=1.8;    // stops someone else completing theirs
+    else if(owners.size>1)v*=0.85;                                  // set already split
+  }else if(s.t==='tr'){v*=1+0.35*TR.filter(k=>st.own[k]&&st.own[k].o===pi).length}
+  else v*=UT.some(k=>st.own[k]&&st.own[k].o===pi)?1.25:0.8;
+  return v;
+}
+/* the game is stuck when nobody can build: then everyone is more willing to deal */
+function stalled(){return st.turnNo>10&&!active().some(pi=>hasMonopoly(pi))}
+/* what pi loses by giving away i, including handing a full set to whoever receives it */
+function loss(pi,i,to){
+  const s=S[i]; let v=s.p*(st.own[i].m?0.55:1);
+  if(s.t==='st'){
+    if(ownsAll(pi,s.g))v*=2.6;else if(setInfo(pi,s.g).mine>1)v*=1.25;
+    if(groupOf(s.g).filter(k=>k!==i).every(k=>st.own[k]&&st.own[k].o===to))v+=s.p*GSTR[s.g]*(stalled()?0.9:2.2);
+  }
+  if(s.t==='tr')v*=1+0.3*TR.filter(k=>st.own[k]&&st.own[k].o===pi).length;
+  return v;
+}
+/* the most an opponent could charge us on one landing right now */
+function danger(pi){let m=0;for(const k in st.own){const o=st.own[k];if(o.o!==pi&&!o.m&&!P(o.o).out){const r=rentOf(+k,{utilRoll:7});if(r>m)m=r}}return m}
+function reserve(pi){const d=danger(pi);return Math.round(Math.max(st.turnNo<4?40:90,Math.min(650,d*0.8)))}
+function freeLeft(){return S.filter((s,i)=>ownable(i)&&!st.own[i]).length}
+function monopolyProps(pi){return propsOf(pi).filter(i=>S[i].t==='st'&&ownsAll(pi,S[i].g))}
+/* raise cash in the least harmful order: loose properties, then houses on the weakest sets, then the sets */
+function autoRaise(pi,need){
+  let guard=200;
+  while(P(pi).money<need&&guard--){
+    const loose=propsOf(pi).filter(i=>canMortgage(i)&&!(S[i].t==='st'&&ownsAll(pi,S[i].g))).sort((a,b)=>worth(pi,a)-worth(pi,b));
+    if(loose.length){mortgage(loose[0]);continue}
+    const withH=propsOf(pi).filter(i=>st.own[i].h>0&&canSell(i,true)).sort((a,b)=>GSTR[S[a].g]-GSTR[S[b].g]||st.own[b].h-st.own[a].h);
+    if(withH.length){sellHouse(withH[0],true);continue}
+    const mo=propsOf(pi).filter(i=>canMortgage(i)).sort((a,b)=>S[a].p-S[b].p);
+    if(mo.length){mortgage(mo[0]);continue}
+    break;
+  }
+}
+function botBuy(pi,i){
+  const p=P(pi),s=S[i],w=worth(pi,i),spare=p.money-s.p;
+  if(p.money<s.p){ // worth mortgaging loose properties for a set-completing buy
+    if(completesSet(pi,i)&&liquidValue(pi)-p.money>=s.p-p.money+20){autoRaise(pi,s.p);return P(pi).money>=s.p}
+    return false;
+  }
+  if(completesSet(pi,i)||w>=s.p*1.7)return spare>=20;
+  if(freeLeft()>14)return spare>=60;                          // early game: grab land
+  return spare>=reserve(pi)*(w>=s.p*1.3?0.5:1);
+}
+function botBidLimit(bi,i){
+  const p=P(bi),s=S[i],w=worth(bi,i);
+  const cap=completesSet(bi,i)||w>=s.p*1.7?p.money-20:p.money-reserve(bi)*0.6;
+  return Math.floor(Math.min(cap,w*(0.9+Math.random()*0.15)));
+}
+/* houses: aim for three on the best set first (the big jump in rent), keep a reserve */
+function botDevelop(pi){
+  const p=P(pi);
+  monopolyProps(pi).filter(i=>st.own[i].m).sort((a,b)=>GSTR[S[b].g]-GSTR[S[a].g]).forEach(i=>{if(p.money-unmortCost(i)>=reserve(pi)*0.6)unmortgage(i)});
+  for(let k=0;k<30;k++){
+    const res=reserve(pi)*0.7;
+    const opts=monopolyProps(pi).filter(i=>canBuild(i)&&p.money-GR[S[i].g].h>=res);
+    if(!opts.length){
+      // fund the first houses on a fresh set by mortgaging loose land
+      const target=monopolyProps(pi).find(i=>canBuild(i)===false&&st.own[i].h<3&&!groupOf(S[i].g).some(q=>st.own[q].m));
+      const loose=propsOf(pi).filter(i=>canMortgage(i)&&!(S[i].t==='st'&&ownsAll(pi,S[i].g)));
+      if(target&&loose.length&&p.money<GR[S[target].g].h+res&&liquidValue(pi)>p.money+GR[S[target].g].h){mortgage(loose.sort((a,b)=>worth(pi,a)-worth(pi,b))[0]);continue}
+      break;
+    }
+    opts.sort((x,y)=>{const gx=(S[x].r[Math.min(5,st.own[x].h+1)]-rentOf(x))/GR[S[x].g].h*GSTR[S[x].g],gy=(S[y].r[Math.min(5,st.own[y].h+1)]-rentOf(y))/GR[S[y].g].h*GSTR[S[y].g];
+      return (st.own[x].h>=3)-(st.own[y].h>=3)||gy-gx});
+    build(opts[0]);
+  }
+  propsOf(pi).filter(i=>st.own[i].m).forEach(i=>{if(p.money-unmortCost(i)>reserve(pi)+250)unmortgage(i)});
+}
+/* propose a trade that completes one of our sets: first look for a swap where both sides complete a set,
+   otherwise pay enough cash for the other side to say yes, if the set is worth it to us */
+function botTradeIdea(pi){
+  const p=P(pi); st.botAsk=st.botAsk||{};
+  const res=reserve(pi)*0.5;
+  for(const g of Object.keys(GR).sort((a,b)=>GSTR[b]-GSTR[a])){
+    const ids=groupOf(g),si=setInfo(pi,g); if(si.mine!==si.n-1||si.theirs!==1)continue;
+    const k=ids.find(q=>st.own[q]&&st.own[q].o!==pi), owner=st.own[k].o;
+    if(P(owner).out||!tradable(k))continue;
+    const key=pi+'-'+k; if(st.botAsk[key]&&st.turnNo-st.botAsk[key]<3)continue;
+    const need=loss(owner,k,pi);
+    // 1) swap: something of ours that completes one of their sets
+    const swap=propsOf(pi).filter(q=>S[q].t==='st'&&S[q].g!==g&&tradable(q)&&!ownsAll(pi,S[q].g)&&groupOf(S[q].g).filter(z=>z!==q).every(z=>st.own[z]&&st.own[z].o===owner))
+      .sort((x,y)=>worth(pi,x)-worth(pi,y))[0];
+    if(swap!=null&&worth(pi,k)>=loss(pi,swap,owner)*0.85){
+      const cash=Math.max(0,Math.min(p.money-res,Math.ceil((need*1.08-worth(owner,swap))/10)*10));
+      st.botAsk[key]=st.turnNo; return {a:pi,b:owner,give:[swap],get:[k],mGive:cash,mGet:0};
+    }
+    // 2) cash, plus a loose property they would like
+    const sweet=propsOf(pi).filter(q=>S[q].t==='st'&&S[q].g!==g&&tradable(q)&&!ownsAll(pi,S[q].g)&&setInfo(owner,S[q].g).mine>0&&setInfo(pi,S[q].g).mine===1)[0];
+    const sweetVal=sweet!=null?worth(owner,sweet):0;
+    const cash=Math.ceil((need*1.08-sweetVal)/10)*10;
+    const myCost=cash+(sweet!=null?loss(pi,sweet,owner):0);
+    if(cash>0&&cash<=p.money-res&&myCost<=worth(pi,k)*1.25){st.botAsk[key]=st.turnNo;return {a:pi,b:owner,give:sweet!=null?[sweet]:[],get:[k],mGive:cash,mGet:0}}
+  }
+  return null;
+}
+function botAccepts(t){
+  const bot=t.b,other=t.a;
+  const gain=t.give.reduce((a,i)=>a+worth(bot,i),0)+t.mGive;
+  const lose=t.get.reduce((a,i)=>a+loss(bot,i,other),0)+t.mGet;
+  if(P(bot).money-t.mGet<40)return false;
+  return gain>lose*1.05+10;
+}
 async function botStep(){
   const a=st.pend;
   if(a&&a.k==='auction'){
-    const bi=a.act[a.turn],p=P(bi),s=S[a.i];
-    let lim=s.p*(completesSet(bi,a.i)?1.6:(0.75+Math.random()*0.35)); lim=Math.min(lim,p.money-60);
-    const inc=a.bid<s.p*0.4?50:10;
+    const bi=a.act[a.turn],s=S[a.i],lim=botBidLimit(bi,a.i);
+    const inc=a.bid<s.p*0.5?50:(a.bid<s.p?20:10);
     if(a.bid+inc<=lim)aBid(inc);else aPass();
     return;
   }
@@ -816,27 +933,74 @@ async function botStep(){
     return;
   }
   const pi=st.cur,p=P(pi);
-  if(a&&a.k==='buy'){
-    const s=S[a.i]; const keep=st.turnNo<4?60:150;
-    if(p.money>=s.p&&(p.money-s.p>=keep||completesSet(pi,a.i)))buy();else startAuction();
-    return;
-  }
+  if(a&&a.k==='buy'){if(botBuy(pi,a.i))buy();else startAuction();return}
   if(st.phase==='roll'){
     if(p.jail){
-      if(p.cards.length){useJailCard();return}
-      if(Object.keys(st.own).length<18&&p.money>=200){payJail();return}
+      const late=freeLeft()<6&&danger(pi)>=250;  // late game: jail is a safe place to sit
+      if(!late){
+        if(p.cards.length){useJailCard();return}
+        if(p.money>=50+reserve(pi)*0.4){payJail();return}
+      }
     }
+    if(!p.jail)botDevelop(pi);
     await roll();return;
   }
   if(st.phase==='end'){
-    for(let k=0;k<12;k++){
-      const opts=propsOf(pi).filter(i=>canBuild(i)&&p.money-GR[S[i].g].h>=220);
-      if(!opts.length)break; opts.sort((x,y)=>st.own[x].h-st.own[y].h||S[y].p-S[x].p); build(opts[0]);
-    }
-    propsOf(pi).filter(i=>st.own[i].m).forEach(i=>{if(p.money-unmortCost(i)>450)unmortgage(i)});
+    botDevelop(pi);
+    if(!st.offer){const t=botTradeIdea(pi);if(t&&validOffer(t)){makeOffer(t);if(st.offer)return}}
     endTurn();
   }
 }
+
+/* ======================= TURN TIMER ======================= */
+/* Every decision a person has to make gets st.turnSec seconds. When the time runs out the game
+   takes the safe default: roll, skip buying (it goes to auction), pass in an auction, end the turn,
+   refuse a trade, or raise money and pay a debt. The engine (host) owns the clock. */
+let clockOff=0;
+function decisionActor(){
+  if(!st||st.winner!=null)return null;
+  if(st.offer)return st.offer.b;
+  const a=st.pend;
+  if(a&&a.k==='auction')return a.act[a.turn];
+  if(a&&a.k==='debt')return a.pi;
+  if(a&&a.k==='jailmove')return null;
+  if(st.phase==='act')return null;
+  return st.cur;
+}
+function updDeadline(){
+  if(!st.turnSec||busy||st.winner!=null){st.deadline=null;st.dkey=null;return}
+  const who=decisionActor();
+  if(who==null||P(who).bot){st.deadline=null;st.dkey=null;return}
+  const a=st.pend;
+  const key=[who,st.cur,st.phase,a?a.k:'',a&&a.k==='auction'?a.turn+'/'+a.bid+'/'+a.act.length:'',st.offer?'o':'',st.turnNo,st.rollSeq].join('|');
+  if(key!==st.dkey||!st.deadline){st.dkey=key;st.deadline=Date.now()+st.turnSec*1000}
+}
+function timeLeft(){if(!st||!st.deadline)return null;return st.deadline-(Date.now()+clockOff)}
+function onTimeout(){
+  if(busy||!st||st.winner!=null)return;
+  const who=decisionActor(); if(who==null||P(who).bot)return;
+  log(pname(who)+' nuk veproi brenda '+st.turnSec+' sekondave.');
+  st.deadline=null; st.dkey=null;
+  if(st.offer){offerReply(false);return}
+  const a=st.pend;
+  if(a&&a.k==='auction'){aPass();return}
+  if(a&&a.k==='debt'){const total=a.list.reduce((x,y)=>x+y.amt,0);autoRaise(a.pi,total);if(P(a.pi).money>=total)payDebt();else declareBankrupt();return}
+  if(a&&a.k==='buy'){startAuction();return}
+  if(st.phase==='roll'){roll();return}
+  if(st.phase==='end'){endTurn();return}
+}
+let lastTick=0;
+setInterval(()=>{
+  if(!st)return;
+  if(engine()&&st.deadline&&!busy&&Date.now()>st.deadline)onTimeout();
+  const left=timeLeft();
+  document.querySelectorAll('.tbar').forEach(el=>{
+    if(left==null){el.hidden=true;return}
+    el.hidden=false; const sec=Math.max(0,Math.ceil(left/1000)),frac=Math.max(0,Math.min(1,left/(st.turnSec*1000)));
+    el.querySelector('i').style.width=(frac*100)+'%'; el.querySelector('b').textContent=sec+' s'; el.classList.toggle('low',sec<=5);
+  });
+  if(left!=null&&left>0&&left<=5000){const s=Math.ceil(left/1000);if(s!==lastTick){lastTick=s;if(isMine(decisionActor()))sfx('tick')}}
+},200);
 
 /* ======================= ACTIONS (routed to the engine) ======================= */
 const GAME={
@@ -1026,7 +1190,7 @@ function renderPlayers(){
     const chips=propsOf(i).map(k=>'<span class="chip'+(st.own[k].m?' m':'')+'" title="'+esc(S[k].n)+'" style="background:'+(S[k].g?GR[S[k].g].c:'#8d99a8')+'"></span>').join('');
     const tags=(p.bot?' <span class="badge b">'+(p.away?'Shkëputur':'Bot')+'</span>':'')+(isMine(i)&&st.online?' <span class="badge y">Ti</span>':'')+(p.jail?' <span class="badge j">Në burg</span>':'')+(p.cards.length?' <span class="badge">Letër lirimi ×'+p.cards.length+'</span>':'');
     return '<div class="pl'+(i===st.cur&&st.winner==null?' cur':'')+(p.out?' out':'')+'">'+figSVG(figOf(p,i),p.color,'pw')+
-      '<div style="min-width:0"><div class="nm2">'+esc(p.name)+tags+'</div><div class="sub">'+esc(S[p.pos].n)+'</div><div class="chips">'+chips+'</div></div><span class="money">'+eur(p.money)+'</span></div>';
+      '<div style="min-width:0"><div class="nm2">'+esc(p.name)+tags+'</div>'+(i===decisionActor()&&st.deadline?'<div class="tbar mini" hidden><i></i><b></b></div>':'')+'<div class="sub">'+esc(S[p.pos].n)+'</div><div class="chips">'+chips+'</div></div><span class="money">'+eur(p.money)+'</span></div>';
   }).join('');
 }
 function canManage(pi){return !busy&&st.winner==null&&pi===st.cur&&!P(pi).bot&&!(st.pend&&st.pend.k==='auction')}
@@ -1088,8 +1252,9 @@ function syncModals(){
 }
 function render(){
   if(!st)return;
-  renderCells();renderCenter();renderPlayers();moneyFx();turnFx();renderActions();renderLog();syncModals();renderRoom();
-  if(engine()){save();scheduleBot();broadcast()}
+  if(engine())updDeadline();
+  renderCells();renderCenter();renderPlayers();moneyFx();turnFx();renderActions();$('#act').insertAdjacentHTML('afterbegin','<div class="tbar" hidden><i></i><b></b></div>');renderLog();syncModals();renderRoom();
+  if(engine()){updDeadline();save();scheduleBot();broadcast()}
 }
 
 /* ======================= DICE: hand + 3D throw ======================= */
@@ -1188,6 +1353,7 @@ function sfx(k){
     else if(k==='coin'){tone(t,1318,0.12,0.08,'triangle');tone(t+0.07,1760,0.18,0.07,'triangle')}
     else if(k==='card'){noise(t,0.12,3500,0.2,1)}
     else if(k==='build'){noise(t,0.04,500,0.6,2);noise(t+0.09,0.04,520,0.5,2)}
+    else if(k==='tick'){tone(t,1250,0.05,0.04,'square')}
     else if(k==='win'){[523,659,784,1046].forEach((f,i)=>tone(t+i*0.13,f,0.35,0.08,'triangle'))}
   }catch(e){}
 }
@@ -1245,7 +1411,7 @@ function setupHTML(tab){
       '<input id="pn'+k+'" maxlength="16" value="'+names[k]+'" aria-label="Emri i lojtarit '+(k+1)+'"><select id="pf'+k+'" aria-label="Figura e lojtarit '+(k+1)+'">'+FIGS.map((f,j)=>'<option value="'+j+'" '+(j===k?'selected':'')+'>'+f.n+'</option>').join('')+'</select><select id="pt'+k+'" aria-label="Lloji"><option value="h" '+(k===0?'selected':'')+'>Njeri</option><option value="b" '+(k>0?'selected':'')+'>Kompjuter</option></select></div>';
     return '<p class="note">Njerëzit luajnë me radhë në të njëjtën pajisje; kompjuteri luan vetë.</p>'+
     '<div class="field" style="max-width:200px;margin-top:12px"><label for="np">Numri i lojtarëve</label><select id="np">'+[2,3,4,5,6].map(n=>'<option '+(n===3?'selected':'')+'>'+n+'</option>').join('')+'</select></div>'+
-    '<div class="setup-grid">'+rows+'</div><div class="row"><button class="btn pri" data-ui="start">Fillo lojën</button></div>'};
+    '<div class="setup-grid">'+rows+'</div>'+'<div class="field" style="max-width:240px;margin-top:12px"><label for="tsec">Koha për çdo vendim</label><select id="tsec">'+[[20,'20 sekonda'],[30,'30 sekonda'],[60,'60 sekonda'],[0,'Pa limit']].map(([v,l])=>'<option value="'+v+'" '+(v===20?'selected':'')+'>'+l+'</option>').join('')+'</select></div>'+'<div class="row" style="margin-top:12px"><button class="btn pri" data-ui="start">Fillo lojën</button></div>'};
   const online=()=>{
     let myName='';try{myName=localStorage.getItem('pk-name')||''}catch(e){}
     if(!ONLINE_OK)return '<p class="lead" style="font-weight:700">Lojët online luhen te faqja zyrtare.</p><p class="note">Hape faqen, krijo lojën dhe dërgoju shokëve linkun. Secili luan nga telefoni i vet dhe mund të flisni me zë.</p>'+
@@ -1273,7 +1439,7 @@ function openSetup(tab){
 function startFromSetup(){
   const n=+$('#np').value; const cfg=[];
   for(let k=0;k<n;k++)cfg.push({name:($('#pn'+k).value.trim()||'Lojtari '+(k+1)).slice(0,16),bot:$('#pt'+k).value==='b',fig:+$('#pf'+k).value});
-  leaveNet(); newGame(cfg,false);
+  leaveNet(); newGame(cfg,false,+$('#tsec').value);
 }
 function openTrade(partner){
   const me=st.cur; const others=active().filter(i=>i!==me); if(!others.length||!isMine(me))return;
@@ -1308,13 +1474,15 @@ function openRules(){
   showModal('<button class="btn sm x" data-ui="close">Mbyll</button><h3>Rregullat</h3><div class="rules">'+
   '<h4>Si të fitosh</h4><p>Bëhu lojtari i fundit në lojë pasi të gjithë të tjerët falimentojnë. Bli prona, ndërto shtëpi dhe hotele dhe mblidh qira.</p>'+
   '<h4>Në radhën tënde</h4><ul><li>Prek zaret në mes të tabelës. Dora i tund dhe i hedh; shuma tregon sa hapa ecën.</li><li>Nëse kalon NISU merr '+eur(200)+'.</li><li>Dyshe: hidh përsëri. Tri dyshe radhazi: shko në burg.</li></ul>'+
-  '<h4>Prona e lirë</h4><p>Bleje me çmimin e shënuar. Nëse nuk e blen, del në ankand dhe çdo lojtar mund të ofrojë, edhe ti.</p>'+
+  '<h4>Prona e lirë</h4><p>Bleje me çmimin e shënuar. Nëse nuk e blen, del në ankand dhe çdo lojtar mund të ofrojë, edhe ti. Mund të blesh vetëm <b>një pronë për radhë</b>: nëse hedh dyshe dhe bie në një pronë tjetër të lirë, nuk mund ta blesh në të njëjtën radhë.</p>'+
+  '<h4>Dyshet dhe qiraja</h4><p>Kur hedh dyshe, nuk paguan qira në pronat ku ndalon gjatë radhës: <b>paguan vetëm aty ku ndalon në fund</b>, pas hedhjes që nuk është dyshe. Tri dyshe radhazi: shko në burg.</p>'+
+  '<h4>Koha</h4><p>Çdo lojtar ka 20 sekonda për çdo vendim (mund ta ndryshosh kur krijon lojën). Kur mbaron koha, loja vendos vetë: hedh zaret, nuk e blen pronën (del në ankand), tërhiqet nga ankandi ose mbyll radhën.</p>'+
   '<h4>Prona e dikujt tjetër</h4><p>Paguaj qiranë. Me gjithë grupin e ngjyrës, qiraja pa ndërtesa dyfishohet. Pronat e hipotekuara nuk japin qira. Transportet: '+eur(25)+' / '+eur(50)+' / '+eur(100)+' / '+eur(200)+'. Shërbimet komunale: 4× ose 10× zaret.</p>'+
   '<h4>Ndërtimi</h4><p>Kur ke gjithë grupin, ndërto shtëpi në mënyrë të barabartë. Pas 4 shtëpive mund të ndërtosh hotel. Banka ka vetëm 32 shtëpi dhe 12 hotele. Ndërtesat i shet te Banka për gjysmën e çmimit.</p>'+
   '<h4>Hipoteka</h4><p>Merr gjysmën e çmimit nga Banka. Për ta shlyer paguan atë shumë plus 10%. Shit ndërtesat e grupit para se të hipotekosh.</p>'+
   '<h4>Burgu</h4><p>Për të dalë: paguaj '+eur(50)+' para se të hedhësh, përdor letrën "Dil nga burgu falas", ose hidh dyshe. Pas përpjekjes së tretë pa sukses paguan '+eur(50)+' dhe lëviz. Në burg mund të mbledhësh qira.</p>'+
   '<h4>Borxhi dhe falimentimi</h4><p>Nëse s\'ke para, shit ndërtesa ose hipotekoni prona. Nëse prapë nuk mjafton, falimenton dhe pasuria kalon te lojtari të cilit i ke borxh, ose te Banka.</p>'+
-  '<h4>Online dhe zëri</h4><p>Te "Lojë e re" → "Online me shokë" krijo një dhomë dhe dërgoju shokëve kodin ose linkun. Shtyp "Fol me zë" për të folur me ta gjatë lojës.</p></div>');
+  '<h4>Online dhe zëri</h4><p>Te "Lojë e re" → "Online me shokë" krijo një dhomë dhe dërgoju shokëve kodin ose linkun. Shtyp "Fol me zë" për të folur me ta gjatë lojës; zëri kalon nga i njëjti server si loja, prandaj punon në çdo rrjet. Përdor kufje nëse dëgjon jehonë.</p></div>');
 }
 function openCredits(){
   modalState={k:'credits'};
@@ -1325,7 +1493,7 @@ function openCredits(){
 /* ======================= ONLINE: rooms over a message relay ======================= */
 /* Game data goes through public MQTT brokers over secure WebSockets. Every phone connects
    OUT to the broker, so it works on any mobile network or Wi-Fi. Three brokers are used at once;
-   as long as one answers, the game carries on. Voice still goes phone-to-phone (PeerJS/WebRTC). */
+   as long as one answers, the game carries on. Voice goes the same way (see the voice section). */
 const BROKERS=window.PK_BROKERS||['wss://broker.emqx.io:8084/mqtt','wss://broker.hivemq.com:8884/mqtt','wss://mqtt.eclipseprojects.io:443/mqtt'];
 const MQTT_LIB=window.PK_MQTT_LIB||'https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js';
 const PEER_LIB=window.PK_PEER_LIB||'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js';
@@ -1370,20 +1538,7 @@ function busPub(bus,sub,obj,retain){
 function busClear(bus,sub){bus.clients.forEach(c=>{try{if(c._up)c.publish(TOPIC+sub,'',{qos:0,retain:true})}catch(e){}})}
 function busClose(bus){if(!bus)return;bus.clients.forEach(c=>{try{c.end(true)}catch(e){}})}
 
-/* ---- voice peer (optional; the game works without it) ---- */
-async function startVoicePeer(){
-  const myNet=net;
-  try{await loadPeerLib()}catch(e){return}
-  if(net!==myNet||typeof RTCPeerConnection==='undefined')return;
-  let peer; try{peer=new Peer(Object.assign({debug:0},window.PK_PEER_OPTS||{}))}catch(e){return}
-  net.peer=peer;
-  peer.on('open',id=>{if(net!==myNet)return;const me=myMember();if(me)me.pid=id;if(role==='host')sendLobby();else sendHost({t:'pid',pid:id});renderRoom()});
-  peer.on('disconnected',()=>{setTimeout(()=>{if(net===myNet&&peer.disconnected&&!peer.destroyed){try{peer.reconnect()}catch(e){}}},1500)});
-  peer.on('error',()=>{});
-  peer.on('call',onCall);
-}
 function myMember(){return net&&net.members.find(m=>m.dev===myDev)}
-function myPid(){return net&&net.peer&&net.peer.open?net.peer.id:''}
 
 /* ---- host ---- */
 async function hostRoom(){
@@ -1395,10 +1550,9 @@ async function hostRoom(){
   const code=randCode();
   net={code,hs:rid(),seq:0,members:[{dev:'host',tok:'host',pid:'',name,voice:'off',seen:Date.now()}],bots:0,voice:{calls:{},on:false},note:'',status:'connecting',acts:new Set()};
   const myNet=net;
-  net.bus=busOpen([code+'/g'],(sub,d)=>{if(net===myNet)onHostMsg(d)});
+  net.bus=busOpen([code+'/g',code+'/a'],(sub,d)=>{if(net!==myNet)return;if(sub.endsWith('/a'))onVoicePacket(d);else onHostMsg(d)});
   net.bus.onUp=()=>{if(net!==myNet)return;const was=net.status;net.status='online';sendLobby();if(st&&st.online)broadcast(true);keepAwake();if(was!=='online'){if(st&&st.online)renderRoom();else openLobby()}};
   net.bus.onDown=()=>{if(net!==myNet)return;if(!net.bus.up){net.status='connecting';refreshNetUI()}};
-  startVoicePeer();
 }
 function refreshNetUI(){renderRoom();if(modalState&&modalState.k==='lobby')openLobby()}
 function uniqueName(n){let x=n,k=2;while(net.members.some(m=>m.name===x))x=n+' '+k++;return x}
@@ -1445,7 +1599,7 @@ function sendLobby(){
 let bcTimer=null,bcLast=0;
 function broadcast(now){
   if(role!=='host'||!net||!st||!st.online)return;
-  const go=()=>{bcTimer=null;bcLast=Date.now();net.seq++;const s=Object.assign({},st,{log:st.log.slice(0,40)});busPub(net.bus,net.code+'/s',{t:'state',hs:net.hs,seq:net.seq,st:s,busy},true)};
+  const go=()=>{bcTimer=null;bcLast=Date.now();net.seq++;const s=Object.assign({},st,{log:st.log.slice(0,40)});busPub(net.bus,net.code+'/s',{t:'state',hs:net.hs,seq:net.seq,st:s,busy,now:Date.now()},true)};
   if(now){if(bcTimer){clearTimeout(bcTimer);bcTimer=null}go();return}
   if(bcTimer)return;
   const wait=Math.max(0,200-(Date.now()-bcLast)); bcTimer=setTimeout(go,wait);
@@ -1461,9 +1615,8 @@ async function joinRoom(){
   role='guest'; myDev=myTok();
   net={code,members:[],voice:{calls:{},on:false},note:'',myName:name,joined:false,hostSeen:0,hs:'',seq:0,started:Date.now()};
   const myNet=net;
-  net.bus=busOpen([code+'/l',code+'/s'],(sub,d)=>{if(net===myNet)onGuestMsg(sub,d)});
+  net.bus=busOpen([code+'/l',code+'/s',code+'/a'],(sub,d)=>{if(net!==myNet)return;if(sub.endsWith('/a'))onVoicePacket(d);else onGuestMsg(sub,d)});
   net.bus.onUp=()=>{if(net!==myNet)return;sendHello();};
-  startVoicePeer();
   try{sessionStorage.setItem('pk-join',JSON.stringify({code,name}))}catch(e){}
 }
 function sendHost(o){if(role!=='guest'||!net)return;o.from=myDev;busPub(net.bus,net.code+'/g',o,false)}
@@ -1486,7 +1639,7 @@ function onGuestMsg(sub,d){
   if(d.t==='state'&&d.st&&Array.isArray(d.st.players)){
     if(d.hs!==net.hs&&net.hs){/* a new host session: accept */}
     if(d.hs===net.hs&&d.seq<=net.seq)return;
-    net.hs=d.hs; net.seq=d.seq; net.hostSeen=Date.now();
+    net.hs=d.hs; net.seq=d.seq; net.hostSeen=Date.now(); if(+d.now)clockOff=+d.now-Date.now();
     if(!d.st.players.some(p=>p.dev===myDev)&&!net.members.some(m=>m.dev===myDev))return; // not our match yet
     const first=!st||!st.online; st=d.st; busy=!!d.busy;
     if(first){shownRoll=st.rollSeq;if(modalState&&(modalState.k==='lobby'||modalState.k==='setup'))closeModal()}
@@ -1545,26 +1698,58 @@ function openLobby(){
     '<h2 style="margin-top:16px;font-family:var(--f-display);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Në dhomë</h2><div class="members">'+mem+'</div>'+
     voiceButtons()+
     (host?'<div class="field" style="max-width:240px;margin-top:14px"><label for="nbots">Lojtarë kompjuter</label><select id="nbots">'+[0,1,2,3,4,5].filter(n=>n+humans<=6).map(n=>'<option '+(n===net.bots?'selected':'')+'>'+n+'</option>').join('')+'</select></div>'+
+      '<div class="field" style="max-width:240px;margin-top:12px"><label for="tsec2">Koha për çdo vendim</label><select id="tsec2">'+[[20,'20 sekonda'],[30,'30 sekonda'],[60,'60 sekonda'],[0,'Pa limit']].map(([v,l])=>'<option value="'+v+'" '+(v===(net.turnSec==null?20:net.turnSec)?'selected':'')+'>'+l+'</option>').join('')+'</select></div>'+
       '<div class="row" style="margin-top:14px"><button class="btn pri" data-ui="startOnline" '+(humans+net.bots<2?'disabled':'')+'>Fillo lojën ('+(humans+net.bots)+' lojtarë)</button></div>'
       :'<p class="note" style="margin-top:14px">'+(net.joined?'Duke pritur që krijuesi i dhomës ta nisë lojën…':'Duke u lidhur…')+'</p>')+
     '<p class="netmsg" id="netmsg">'+esc(net.note||'')+'</p>');
   const nb=$('#nbots');if(nb)nb.addEventListener('change',e=>{net.bots=+e.target.value;sendLobby();openLobby()});
+  const ts=$('#tsec2');if(ts)ts.addEventListener('change',e=>{net.turnSec=+e.target.value});
 }
 function startOnline(){
   if(role!=='host')return;
   const cfg=net.members.filter(m=>!m.spectator).slice(0,6).map(m=>({name:m.name,bot:false,dev:m.dev,tok:m.tok}));
   const botNames=['Arbeni','Drita','Blerta','Gëzimi','Liridona'];
   for(let k=0;k<net.bots&&cfg.length<6;k++)cfg.push({name:botNames[k]+' (bot)',bot:true,dev:'bot'});
-  newGame(cfg,true); sendLobby();
+  newGame(cfg,true,net.turnSec==null?20:net.turnSec); sendLobby();
 }
 
-/* ---------- voice (WebRTC audio, mesh between everyone in the room) ---------- */
-function myPid(){return net&&net.peer?net.peer.id:''}
-function micBadge(m){const v=m.voice||'off';return '<span class="mic '+(v==='on'?'live':v==='muted'?'muted':'')+'" data-pid="'+esc(m.pid)+'" title="'+(v==='on'?'Në bisedë':v==='muted'?'Heshtur':'Jo në bisedë')+'">'+(v==='muted'||v==='off'?MIC_OFF:MIC)+'</span>'}
+/* ---------- voice over the relay ----------
+   The microphone is resampled to 16 kHz, compressed with IMA-ADPCM (4 bits a sample, about 8 KB/s)
+   and sent in ~160 ms packets through the same brokers as the game. Silence is not sent.
+   Every phone only connects outwards, so voice works on the same networks the game does. */
+function myPid(){return myDev}
+const VRATE=16000, VCHUNK=2560;
+const ASTEP=[7,8,9,10,11,12,13,14,16,17,19,21,23,25,28,31,34,37,41,45,50,55,60,66,73,80,88,97,107,118,130,143,157,173,190,209,230,253,279,307,337,371,408,449,494,544,598,658,724,796,876,963,1060,1166,1282,1411,1552,1707,1878,2066,2272,2499,2749,3024,3327,3660,4026,4428,4871,5358,5894,6484,7132,7845,8630,9493,10442,11487,12635,13899,15289,16818,18500,20350,22385,24623,27086,29794,32767];
+const AIDX=[-1,-1,-1,-1,2,4,6,8,-1,-1,-1,-1,2,4,6,8];
+function adpcmEnc(pcm,st0){
+  let pred=st0.pred,index=st0.index; const out=new Uint8Array((pcm.length+1)>>1);
+  for(let i=0;i<pcm.length;i++){
+    let step=ASTEP[index],diff=pcm[i]-pred,code=0; if(diff<0){code=8;diff=-diff}
+    let vp=step>>3; if(diff>=step){code|=4;diff-=step;vp+=step} step>>=1; if(diff>=step){code|=2;diff-=step;vp+=step} step>>=1; if(diff>=step){code|=1;vp+=step}
+    pred+=(code&8)?-vp:vp; if(pred>32767)pred=32767;else if(pred<-32768)pred=-32768;
+    index+=AIDX[code]; if(index<0)index=0;else if(index>88)index=88;
+    if(i&1)out[i>>1]|=code<<4;else out[i>>1]=code;
+  }
+  st0.pred=pred;st0.index=index; return out;
+}
+function adpcmDec(pred,index,data,n){
+  const out=new Float32Array(n);
+  for(let i=0;i<n;i++){
+    const code=(i&1)?(data[i>>1]>>4):(data[i>>1]&15),step=ASTEP[index];
+    let vp=step>>3; if(code&4)vp+=step; if(code&2)vp+=step>>1; if(code&1)vp+=step>>2;
+    pred+=(code&8)?-vp:vp; if(pred>32767)pred=32767;else if(pred<-32768)pred=-32768;
+    index+=AIDX[code]; if(index<0)index=0;else if(index>88)index=88; out[i]=pred/32768;
+  }
+  return out;
+}
+const b64e=u=>{let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s)};
+const b64d=s=>{const b=atob(s),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return u};
+function micBadge(m){const v=m.voice||'off';return '<span class="mic '+(v==='on'?'live':v==='muted'?'muted':'')+'" data-pid="'+esc(m.dev||'')+'" title="'+(v==='on'?'Në bisedë':v==='muted'?'Heshtur':'Jo në bisedë')+'">'+(v==='muted'||v==='off'?MIC_OFF:MIC)+'</span>'}
 function voiceButtons(){
   if(!net)return'';const v=net.voice;
-  if(!v.on)return '<div class="row" style="margin-top:6px"><button class="btn gold" data-ui="voiceOn">Fol me zë</button><span class="note">Mikrofoni hapet vetëm kur e shtyp.</span></div>';
-  return '<div class="row" style="margin-top:6px"><button class="btn '+(v.muted?'dan':'on')+'" data-ui="mute">'+(v.muted?'Je i heshtur – ndize mikrofonin':'Mikrofoni ndezur – hesht')+'</button><button class="btn sm" data-ui="voiceOff">Dil nga biseda</button></div>'+(v.listenOnly?'<p class="note">Mikrofoni nuk u lejua: vetëm dëgjon.</p>':'');
+  if(!v.on)return '<div class="row" style="margin-top:6px"><button class="btn gold" data-ui="voiceOn">Fol me zë</button><span class="note">Dëgjon dhe flet me të gjithë në dhomë.</span></div>';
+  return '<div class="row" style="margin-top:6px"><button class="btn '+(v.muted?'dan':'on')+'" data-ui="mute">'+(v.muted?'Je i heshtur – ndize mikrofonin':'Mikrofoni ndezur – hesht')+'</button><button class="btn sm" data-ui="voiceOff">Dil nga biseda</button></div>'+
+    (v.listenOnly?'<p class="note">Mikrofoni nuk u lejua: vetëm dëgjon. Lejo mikrofonin te cilësimet e shfletuesit.</p>':'<p class="note">Përdor kufje nëse dëgjon jehonë.</p>');
 }
 function setMyVoice(state){
   if(!net)return; const me=myMember(); if(me)me.voice=state;
@@ -1573,61 +1758,64 @@ function setMyVoice(state){
 }
 async function joinVoice(){
   if(!net||net.voice.on)return; sfxUnlock(); const v=net.voice;
-  if(!myPid()){toastRoom('Zëri po lidhet ende. Provo përsëri pas pak sekondash.');if(!net.peer)startVoicePeer();return}
-  try{ v.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true}}); v.listenOnly=false }
-  catch(e){ try{const dst=actx.createMediaStreamDestination();v.stream=dst.stream}catch(x){v.stream=new MediaStream()} v.listenOnly=true }
-  v.on=true; v.muted=false; meterFor(myPid(),v.stream);
-  net.members.forEach(m=>{if(m.pid&&m.pid!==myPid())callPeer(m.pid)});
+  try{if(navigator.audioSession)navigator.audioSession.type='play-and-record'}catch(e){}
+  try{v.stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,channelCount:1}});v.listenOnly=false}
+  catch(e){v.stream=null;v.listenOnly=true}
+  if(!net||net.voice!==v)return;
+  try{if(actx.state!=='running')await actx.resume()}catch(e){}
+  v.on=true; v.muted=false; v.seq=0; v.peers={}; v.enc={pred:0,index:0}; v.acc=[]; v.accN=0; v.hang=0;
+  if(v.stream){
+    const src=actx.createMediaStreamSource(v.stream), proc=actx.createScriptProcessor(4096,1,1), sink=actx.createGain();
+    sink.gain.value=0; src.connect(proc); proc.connect(sink); sink.connect(actx.destination);
+    v.nodes=[src,proc,sink]; proc.onaudioprocess=e=>voiceCapture(e.inputBuffer.getChannelData(0),actx.sampleRate);
+  }
   setMyVoice(v.listenOnly?'muted':'on');
 }
-function callPeer(pid){
-  const v=net.voice; if(!v.on||!v.stream)return;
-  if(v.calls[pid]){try{v.calls[pid].close()}catch(e){}}
-  const c=net.peer.call(pid,v.stream); if(!c)return; c._mine=true; v.calls[pid]=c; wireCall(pid,c);
+function voiceCapture(f,rate){
+  const v=net&&net.voice; if(!v||!v.on||!v.stream)return;
+  const ratio=rate/VRATE,n=Math.floor(f.length/ratio),pcm=new Int16Array(n); let sum=0;
+  for(let i=0;i<n;i++){const a=Math.floor(i*ratio),b=Math.max(a+1,Math.floor((i+1)*ratio));let s=0;for(let k=a;k<b;k++)s+=f[k];s/=(b-a);sum+=s*s;pcm[i]=Math.max(-32768,Math.min(32767,Math.round(s*32767)))}
+  const now=performance.now(), loud=Math.sqrt(sum/Math.max(1,n))>0.012;
+  if(loud&&!v.muted)v.hang=now+700;
+  const speaking=!v.muted&&now<v.hang; talkMark(myDev,speaking,300);
+  if(!speaking){v.acc=[];v.accN=0;return}
+  v.acc.push(pcm); v.accN+=n;
+  if(v.accN<VCHUNK)return;
+  const all=new Int16Array(v.accN); let o=0; v.acc.forEach(c=>{all.set(c,o);o+=c.length}); v.acc=[];v.accN=0;
+  const p0=v.enc.pred,i0=v.enc.index, data=adpcmEnc(all,v.enc);
+  busPub(net.bus,net.code+'/a',{t:'au',from:myDev,seq:++v.seq,p:p0,x:i0,n:all.length,d:b64e(data)},false);
 }
-function onCall(call){
-  if(!net)return; const v=net.voice,pid=call.peer;
-  if(!v.on){try{call.close()}catch(e){}return}
-  const ex=v.calls[pid];
-  if(ex&&ex._mine&&ex.open!==false&&myPid()>pid){try{call.close()}catch(e){}return}
-  if(ex){try{ex.close()}catch(e){}}
-  v.calls[pid]=call; call.answer(v.stream); wireCall(pid,call);
+function onVoicePacket(d){
+  const v=net&&net.voice; if(!v||!v.on||!d||d.t!=='au'||d.from===myDev||typeof d.d!=='string')return;
+  const n=Math.min(+d.n||0,16000); if(!n)return;
+  let pcm; try{pcm=adpcmDec(+d.p|0,Math.max(0,Math.min(88,+d.x|0)),b64d(d.d),n)}catch(e){return}
+  const peer=v.peers[d.from]||(v.peers[d.from]={next:0,seq:0,gain:null});
+  if(d.seq<=peer.seq&&peer.seq-d.seq<50)return; peer.seq=d.seq;
+  if(!peer.gain){peer.gain=actx.createGain();peer.gain.gain.value=1.4;peer.gain.connect(actx.destination)}
+  const buf=actx.createBuffer(1,n,VRATE); buf.copyToChannel(pcm,0);
+  const now=actx.currentTime; if(peer.next<now+0.04||peer.next>now+1.5)peer.next=now+0.28;
+  const s=actx.createBufferSource(); s.buffer=buf; s.connect(peer.gain); s.start(peer.next); peer.next+=buf.duration;
+  talkMark(d.from,true,(peer.next-now)*1000+150);
 }
-function wireCall(pid,c){
-  c.on('stream',s=>attachAudio(pid,s));
-  const end=()=>{if(net&&net.voice.calls[pid]===c){delete net.voice.calls[pid];detachAudio(pid)}};
-  c.on('close',end); c.on('error',end);
+const talkT={};
+function talkMark(id,on,ms){
+  document.querySelectorAll('.mic[data-pid="'+CSS.escape(id)+'"]').forEach(el=>el.classList.toggle('talk',on));
+  clearTimeout(talkT[id]); if(on)talkT[id]=setTimeout(()=>talkMark(id,false),ms||400);
 }
-function attachAudio(pid,s){
-  let a=document.getElementById('au-'+CSS.escape(pid));
-  if(!a){a=document.createElement('audio');a.id='au-'+pid;a.autoplay=true;a.setAttribute('playsinline','');$('#audios').appendChild(a)}
-  a.srcObject=s; a.play().catch(()=>toastRoom('Shtyp diku në faqe për të dëgjuar zërin.'));
-  meterFor(pid,s);
-}
-function detachAudio(pid){const a=document.getElementById('au-'+pid);if(a){a.srcObject=null;a.remove()}delete meters[pid]}
-function dropCall(pid){if(!net)return;const c=net.voice.calls[pid];if(c){try{c.close()}catch(e){}delete net.voice.calls[pid]}detachAudio(pid)}
+function dropCall(id){if(net&&net.voice&&net.voice.peers)delete net.voice.peers[id]}
 function leaveVoice(silent){
   if(!net)return; const v=net.voice;
-  Object.keys(v.calls).forEach(dropCall);
+  (v.nodes||[]).forEach(nd=>{try{nd.disconnect()}catch(e){}}); v.nodes=null;
   if(v.stream)v.stream.getTracks().forEach(t=>t.stop());
-  v.stream=null; v.on=false; delete meters[myPid()];
+  Object.values(v.peers||{}).forEach(p=>{try{p.gain&&p.gain.disconnect()}catch(e){}});
+  v.stream=null; v.on=false; v.peers={};
   if(!silent)setMyVoice('off');
 }
 function toggleMute(){
   const v=net&&net.voice; if(!v||!v.on||v.listenOnly)return; v.muted=!v.muted;
-  v.stream.getAudioTracks().forEach(t=>t.enabled=!v.muted); setMyVoice(v.muted?'muted':'on');
+  if(v.stream)v.stream.getAudioTracks().forEach(t=>t.enabled=!v.muted); setMyVoice(v.muted?'muted':'on');
 }
-const meters={};
-function meterFor(pid,stream){
-  try{ sfxUnlock(); if(!stream.getAudioTracks().length)return;
-    const src=actx.createMediaStreamSource(stream),an=actx.createAnalyser();an.fftSize=512;src.connect(an);meters[pid]={an,buf:new Uint8Array(an.fftSize)} }catch(e){}
-}
-(function meterLoop(){
-  for(const pid in meters){const m=meters[pid];m.an.getByteTimeDomainData(m.buf);let s=0;for(let i=0;i<m.buf.length;i+=4){const x=(m.buf[i]-128)/128;s+=x*x}
-    const talk=Math.sqrt(s/(m.buf.length/4))>0.04&&!(pid===myPid()&&net&&net.voice.muted);
-    document.querySelectorAll('.mic[data-pid="'+CSS.escape(pid)+'"]').forEach(el=>el.classList.toggle('talk',talk))}
-  requestAnimationFrame(meterLoop);
-})();
+
 function renderRoom(){
   const el=$('#room'); if(!net){el.hidden=true;el.innerHTML='';return}
   el.hidden=false;

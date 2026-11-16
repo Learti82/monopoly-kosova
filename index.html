@@ -196,6 +196,33 @@ button:focus-visible,input:focus-visible,select:focus-visible,.cell:focus-visibl
 .tbar.low i{background:var(--danger)}
 .tbar b{position:relative;display:block;text-align:center;font:700 12px/20px var(--f-mono);color:var(--ink)}
 .tbar.mini{height:6px;margin:4px 0 0;border:0}.tbar.mini b{display:none}
+.pl{cursor:pointer}.pl:hover{border-color:var(--line)}.pl.cur:hover{border-color:var(--accent)}
+.pf-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}.pf-top h2{margin:0}
+.pf-tabs{display:flex;gap:6px;overflow-x:auto;margin:10px 0 12px;scrollbar-width:none}
+.pf-tab{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:99px;padding:3px 12px 3px 5px;font-weight:700;font-size:13px;flex:0 0 auto}
+.pf-tab svg{width:20px;height:26px;overflow:visible}
+.pf-tab.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.pf-tab.out{opacity:.5}
+.pf-head{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.pf-head>div{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px;min-width:0}
+.pf-k{font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pf-v{font-family:var(--f-mono);font-weight:700;font-size:16px;font-variant-numeric:tabular-nums}
+#pfPanel .pf-head,.modal .pf-head{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media (min-width:600px){.modal .pf-head{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.pf-grps{display:flex;flex-direction:column;gap:10px}
+#pfPanel .pf-grps{max-height:440px;overflow:auto}
+.pf-grp{border:1px solid var(--line);border-left:6px solid var(--gc);border-radius:10px;overflow:hidden}
+.pf-grp header{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;font-weight:800;font-size:13px;background:var(--panel-2)}
+.pf-cnt{font-size:12px;color:var(--muted);white-space:nowrap}.pf-cnt.full{color:var(--ok)}
+.pf-row{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;width:100%;border:0;border-top:1px solid var(--line);background:var(--panel);color:var(--ink);padding:6px 10px;text-align:left;font:inherit}
+.pf-row:hover{background:var(--panel-2)}
+.pf-row i{width:44px;height:33px;border-radius:5px;background:center/cover no-repeat;display:grid;place-items:center;color:#fff}
+.pf-row i .ico{width:20px;height:20px}
+.pf-n{font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-b{display:inline-block;margin-left:6px;font-size:11px;font-weight:800;color:var(--ok);background:color-mix(in srgb,var(--ok) 14%,transparent);border-radius:99px;padding:1px 7px}
+.pf-b.ho{color:var(--danger);background:color-mix(in srgb,var(--danger) 12%,transparent)}
+.pf-r{font-family:var(--f-mono);font-size:12px;font-weight:700;white-space:nowrap}
+.pf-m{font-size:11px;font-weight:800;color:var(--danger);white-space:nowrap}
 .log{max-height:240px;overflow:auto;font-size:13px;display:flex;flex-direction:column;padding-right:4px}
 .log div{padding:5px 0;border-bottom:1px solid var(--line)}
 .log div:last-child{border:0}
@@ -266,7 +293,7 @@ input,select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(
   .only-touch{display:inline-flex}
   .app{display:flex;flex-direction:column;align-items:stretch;gap:10px;padding-block:8px calc(var(--dock-h,170px) + 14px);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
   .desk{display:contents}
-  .top{order:1}#playersPanel{order:2}.board-wrap{order:3}#room{order:4}#logPanel{order:5}.credline{order:6}
+  .top{order:1}#playersPanel{order:2}.board-wrap{order:3}#pfPanel{order:3}#room{order:4}#logPanel{order:5}.credline{order:6}
   .board{width:100%}
   .brand{display:none}
   .top .links{flex-wrap:nowrap;justify-content:space-between;width:100%}
@@ -308,15 +335,17 @@ input,select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(
         <button class="ibtn only-touch" data-ui="zoom" id="zoomBtn" aria-pressed="false" title="Zmadho dhe ndiq figurën"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5M8 11h6M11 8v6"/></svg><span>Zmadho</span></button>
         <button class="ibtn" data-ui="fullscreen" id="fsBtn" title="Ekran i plotë"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>Ekran i plotë</span></button>
         <button class="ibtn" data-ui="sound" id="sndBtn" aria-pressed="true" title="Efektet zanore"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg><span>Efektet</span></button>
+        <button class="ibtn" data-ui="pf" title="Portofoli"><svg viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H18v3M3 7.5V17a2 2 0 0 0 2 2h15V8H5.5A2.5 2.5 0 0 1 3 7.5z"/><circle cx="16" cy="13.5" r="1.2"/></svg><span>Portofoli</span></button>
         <button class="ibtn" data-ui="rules" title="Rregullat"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7"/></svg><span>Rregullat</span></button>
         <button class="ibtn" data-ui="setup" title="Lojë e re"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Lojë e re</span></button>
       </div>
     </div>
     <section class="panel room" id="room" hidden></section>
     <section class="panel act" id="act" aria-live="polite"></section>
+    <section class="panel" id="pfPanel" hidden></section>
     <section class="panel" id="playersPanel"><h2>Lojtarët</h2><div class="players" id="players"></div></section>
     <section class="panel" id="logPanel"><h2>Ngjarjet</h2><div class="log" id="log"></div></section>
-    <p class="note credline" style="margin:0">Fotot: Wikimedia Commons. <button class="btn sm" data-ui="credits">Autorët e fotove</button> · Versioni 16.11 (v9)</p>
+    <p class="note credline" style="margin:0">Fotot: Wikimedia Commons. <button class="btn sm" data-ui="credits">Autorët e fotove</button> · Versioni 16.11 (v10)</p>
   </aside>
 </div>
 <div id="modal"></div>
@@ -1000,6 +1029,49 @@ setInterval(()=>{
   if(left!=null&&left>0&&left<=5000){const s=Math.ceil(left/1000);if(s!==lastTick){lastTick=s;if(isMine(decisionActor()))sfx('tick')}}
 },200);
 
+/* ======================= PORTFOLIO ======================= */
+/* Each player's holdings at a glance: cash, total worth, every property grouped by colour with
+   buildings, rent and mortgages. Opens as a sheet, or stays pinned beside / under the board. */
+const pf={sel:null,pin:false,last:''};
+try{pf.pin=localStorage.getItem('pk-pfpin')==='1'}catch(e){}
+function myIndex(){if(!st)return 0;const i=st.players.findIndex((p,k)=>isMine(k));return i>=0?i:st.cur}
+function netWorth(pi){let v=P(pi).money;propsOf(pi).forEach(i=>{const o=st.own[i],s=S[i];v+=o.m?s.p/2:s.p;if(s.t==='st')v+=o.h*GR[s.g].h});return v}
+function pfHTML(pi){
+  const p=P(pi),mine=propsOf(pi);
+  const tabs='<div class="pf-tabs" role="tablist">'+st.players.map((q,k)=>'<button role="tab" class="pf-tab'+(k===pi?' on':'')+(q.out?' out':'')+'" data-ui="pfSel" data-arg="'+k+'" aria-selected="'+(k===pi)+'">'+figSVG(figOf(q,k),q.color)+'<span>'+esc(q.name)+'</span></button>').join('')+'</div>';
+  let houses=0,hotels=0; mine.forEach(i=>{const h=st.own[i].h;if(h===5)hotels++;else houses+=h});
+  const head='<div class="pf-head"><div><div class="pf-k">Para në dorë</div><div class="pf-v">'+eur(p.money)+'</div></div><div><div class="pf-k">Vlera totale</div><div class="pf-v">'+eur(netWorth(pi))+'</div></div>'+
+    '<div><div class="pf-k">Prona</div><div class="pf-v">'+mine.length+'</div></div><div><div class="pf-k">Shtëpi · Hotele</div><div class="pf-v">'+houses+' · '+hotels+'</div></div></div>'+
+    (p.cards.length?'<p class="note">Ka '+p.cards.length+' letër "Dil nga burgu falas".</p>':'')+(p.jail?'<p class="note">Është në burg.</p>':'')+(p.out?'<p class="note" style="color:var(--danger)">Ka falimentuar.</p>':'');
+  if(!mine.length)return tabs+head+'<p class="note" style="margin-top:12px">'+esc(p.name)+' ende nuk ka blerë asnjë pronë.</p>';
+  const groups=[];
+  Object.keys(GR).forEach(g=>{const ids=groupOf(g),own=ids.filter(i=>st.own[i]&&st.own[i].o===pi);if(own.length)groups.push({c:GR[g].c,t:'Grupi '+GR[g].n.toLowerCase(),ids:own,n:ids.length})});
+  const tr=TR.filter(i=>st.own[i]&&st.own[i].o===pi); if(tr.length)groups.push({c:'#13203a',t:'Transporti',ids:tr,n:TR.length});
+  const ut=UT.filter(i=>st.own[i]&&st.own[i].o===pi); if(ut.length)groups.push({c:'#6b7787',t:'Shërbimet komunale',ids:ut,n:UT.length});
+  const body=groups.map(g=>{const full=g.ids.length===g.n;
+    return '<section class="pf-grp" style="--gc:'+g.c+'"><header><span>'+g.t+'</span><span class="pf-cnt'+(full?' full':'')+'">'+(full?'Grup i plotë':g.ids.length+' nga '+g.n)+'</span></header>'+
+      g.ids.map(i=>{const o=st.own[i],s=S[i];
+        const bld=o.h===5?'<span class="pf-b ho">Hotel</span>':o.h?'<span class="pf-b">'+o.h+' shtëpi</span>':'';
+        const rent=o.m?'<span class="pf-m">Hipotekë</span>':'<span class="pf-r">Qira '+(s.t==='ut'?(ut.length===2?'10':'4')+'× zaret':eur(rentOf(i)))+'</span>';
+        return '<button class="pf-row" data-ui="deed" data-arg="'+i+'"><i style="'+(img(i)?bgimg(i):'background:'+g.c)+'">'+(img(i)?'':svgI(s.ic))+'</i><span class="pf-n">'+esc(s.n)+bld+'</span>'+rent+'</button>'}).join('')+'</section>'}).join('');
+  return tabs+head+'<div class="pf-grps">'+body+'</div>';
+}
+function openPortfolio(pi){
+  if(!st)return; pf.sel=pi==null?(pf.sel!=null?pf.sel:myIndex()):+pi; if(!P(pf.sel))pf.sel=myIndex();
+  const h='<button class="btn sm x" data-ui="close">Mbyll</button><h3>Portofoli</h3><div class="row" style="margin:4px 0 2px"><button class="btn sm" data-ui="pfPin">Mbaje hapur '+(isPhone()?'nën tabelë':'anash')+'</button></div>'+pfHTML(pf.sel);
+  if(modalState&&modalState.k==='pf'&&pf.last===h)return;
+  const box=document.querySelector('#modal .modal'), keep=modalState&&modalState.k==='pf'&&box?box.scrollTop:0;
+  modalState={k:'pf'}; pf.last=h; showModal(h);
+  const nb=document.querySelector('#modal .modal'); if(nb)nb.scrollTop=keep;
+}
+function renderPortfolio(){
+  const el=$('#pfPanel'); if(!el||!st)return;
+  if(!pf.pin){el.hidden=true;return}
+  if(pf.sel==null||!P(pf.sel))pf.sel=myIndex();
+  const h='<div class="pf-top"><h2>Portofoli</h2><button class="btn sm" data-ui="pfPin">Mbyll</button></div>'+pfHTML(pf.sel);
+  el.hidden=false; if(el._h!==h){const g=el.querySelector('.pf-grps'),sc=g?g.scrollTop:0;el.innerHTML=h;el._h=h;const g2=el.querySelector('.pf-grps');if(g2)g2.scrollTop=sc}
+}
+
 /* ======================= ACTIONS (routed to the engine) ======================= */
 const GAME={
   roll:()=>roll(), buy, auction:startAuction, bid:n=>aBid(+n), pass:aPass, endTurn:()=>endTurn(),
@@ -1187,7 +1259,7 @@ function renderPlayers(){
   $('#players').innerHTML=st.players.map((p,i)=>{
     const chips=propsOf(i).map(k=>'<span class="chip'+(st.own[k].m?' m':'')+'" title="'+esc(S[k].n)+'" style="background:'+(S[k].g?GR[S[k].g].c:'#8d99a8')+'"></span>').join('');
     const tags=(p.bot?' <span class="badge b">'+(p.away?'Shkëputur':'Bot')+'</span>':'')+(isMine(i)&&st.online?' <span class="badge y">Ti</span>':'')+(p.jail?' <span class="badge j">Në burg</span>':'')+(p.cards.length?' <span class="badge">Letër lirimi ×'+p.cards.length+'</span>':'');
-    return '<div class="pl'+(i===st.cur&&st.winner==null?' cur':'')+(p.out?' out':'')+'">'+figSVG(figOf(p,i),p.color,'pw')+
+    return '<div class="pl'+(i===st.cur&&st.winner==null?' cur':'')+(p.out?' out':'')+'" data-ui="pf" data-arg="'+i+'" role="button" tabindex="0" title="Shih portofolin e '+esc(p.name)+'">'+figSVG(figOf(p,i),p.color,'pw')+
       '<div style="min-width:0"><div class="nm2">'+esc(p.name)+tags+'</div>'+(i===decisionActor()&&st.deadline?'<div class="tbar mini" hidden><i></i><b></b></div>':'')+'<div class="sub">'+esc(S[p.pos].n)+'</div><div class="chips">'+chips+'</div></div><span class="money">'+eur(p.money)+'</span></div>';
   }).join('');
 }
@@ -1244,6 +1316,7 @@ function renderActions(){
 }
 function renderLog(){const h=st.log.map(l=>'<div>'+l+'</div>').join('');const el=$('#log');if(el._h!==h){el.innerHTML=h;el._h=h}}
 function syncModals(){
+  if(modalState&&modalState.k==='pf')openPortfolio(pf.sel);
   if(st.offer&&isMine(st.offer.b)){ if(!modalState||modalState.k!=='offer')openOfferConfirm(); }
   else if(modalState&&modalState.k==='offer')closeModal();
   if(modalState&&modalState.k==='deed')openDeed(modalState.i);
@@ -1251,7 +1324,7 @@ function syncModals(){
 function render(){
   if(!st)return;
   if(engine())updDeadline();
-  renderCells();renderCenter();renderPlayers();moneyFx();turnFx();renderActions();$('#act').insertAdjacentHTML('afterbegin','<div class="tbar" hidden><i></i><b></b></div>');renderLog();syncModals();renderRoom();
+  renderCells();renderCenter();renderPlayers();renderPortfolio();moneyFx();turnFx();renderActions();$('#act').insertAdjacentHTML('afterbegin','<div class="tbar" hidden><i></i><b></b></div>');renderLog();syncModals();renderRoom();
   if(engine()){updDeadline();save();scheduleBot();broadcast()}
 }
 
@@ -1826,6 +1899,8 @@ function renderRoom(){
 /* ======================= EVENTS ======================= */
 const UI={
   deed:i=>openDeed(i), close:closeModal, rules:openRules, credits:openCredits,
+  pf:i=>openPortfolio(i), pfSel:i=>{pf.sel=+i;if(modalState&&modalState.k==='pf')openPortfolio(+i);else renderPortfolio()},
+  pfPin:()=>{pf.pin=!pf.pin;try{localStorage.setItem('pk-pfpin',pf.pin?'1':'0')}catch(e){}if(modalState&&modalState.k==='pf')closeModal();renderPortfolio();if(pf.pin){const el=$('#pfPanel');if(el&&isPhone())el.scrollIntoView({behavior:'smooth',block:'start'})}},
   setup:()=>openSetup(), tab:t=>{modalState.tab=t;openSetup(t)}, start:startFromSetup,
   trade:()=>openTrade(), propose:proposeTrade,
   host:hostRoom, join:joinRoom, lobby:openLobby, startOnline,
@@ -1849,6 +1924,7 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Escape'&&modalState&&modalState.k!=='offer'){closeModal();return}
   if((e.key==='Enter'||e.key===' ')&&e.target.classList){
     if(e.target.classList.contains('cell')){e.preventDefault();openDeed(e.target.dataset.arg)}
+    else if(e.target.classList.contains('pl')){e.preventDefault();openPortfolio(e.target.dataset.arg)}
     else if(e.target.id==='tray'&&canRollNow()){e.preventDefault();doAction('roll')}
   }
 });

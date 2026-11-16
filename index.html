@@ -663,10 +663,9 @@ async function roll(){
     if(dbl){p.jail=false;p.jailTurns=0;st.again=false;log(pname(pi)+' doli nga burgu me dyshe.');st.phase='act';await walk(pi,a+b);await land(pi);cont();return}
     p.jailTurns++;
     if(p.jailTurns>=3){
-      st.msg=esc(p.name)+' duhet të paguajë '+eur(50)+' dhe të dalë.';
-      st.pend={k:'jailmove',n:a+b};
-      if(pay(pi,[{to:null,amt:50}],'Lirim nga burgu')){st.pend=null;jailMove(a+b)}
-      else render();
+      log(pname(pi)+' doli nga burgu pas hedhjes së tretë, pa paguar.');
+      st.msg=esc(p.name)+' del nga burgu falas pas hedhjes së tretë dhe ecën '+(a+b)+' hapa.';
+      jailMove(a+b);
       return;
     }
     st.msg=esc(p.name)+' nuk hodhi dyshe dhe mbetet në burg.'; st.phase='end'; st.again=false; render(); return;
@@ -1228,7 +1227,7 @@ function renderActions(){
       '<div class="row"><button class="btn pri" data-act="payDebt" '+(d.money<total?'disabled':'')+'>Paguaj '+eur(total)+'</button><button class="btn dan" data-act="bankrupt">Shpall falimentim</button></div>';
   }else if(st.phase==='roll'){
     if(p.jail){
-      h+='<p class="lead">Je në burg (përpjekja '+(p.jailTurns+1)+' nga 3).</p><p class="note">Hidh dyshe për të dalë, paguaj '+eur(50)+' ose përdor letrën e lirimit.</p>'+
+      h+='<p class="lead">Je në burg (përpjekja '+(p.jailTurns+1)+' nga 3).</p><p class="note">Hidh dyshe për të dalë, paguaj '+eur(50)+' ose përdor letrën e lirimit. '+(p.jailTurns>=2?'Kjo është hedhja e fundit: del falas me këtë hedhje.':'Pas hedhjes së tretë del falas.')+'</p>'+
         '<div class="row"><button class="btn pri" data-act="roll" '+(busy?'disabled':'')+'>Hidh zaret</button><button class="btn" data-act="payJail" '+(p.money<50?'disabled':'')+'>Paguaj '+eur(50)+'</button>'+(p.cards.length?'<button class="btn gold" data-act="useCard">Përdor letrën</button>':'')+'</div>';
     }else{
       h+='<p class="lead">'+(st.msg||'Hidh zaret.')+'</p><div class="row"><button class="btn pri" data-act="roll" '+(busy?'disabled':'')+'>Hidh zaret</button><button class="btn" data-ui="trade" '+(busy?'disabled':'')+'>Bëj marrëveshje</button></div>';
@@ -1480,7 +1479,7 @@ function openRules(){
   '<h4>Prona e dikujt tjetër</h4><p>Paguaj qiranë. Me gjithë grupin e ngjyrës, qiraja pa ndërtesa dyfishohet. Pronat e hipotekuara nuk japin qira. Transportet: '+eur(25)+' / '+eur(50)+' / '+eur(100)+' / '+eur(200)+'. Shërbimet komunale: 4× ose 10× zaret.</p>'+
   '<h4>Ndërtimi</h4><p>Kur ke gjithë grupin, ndërto shtëpi në mënyrë të barabartë. Pas 4 shtëpive mund të ndërtosh hotel. Banka ka vetëm 32 shtëpi dhe 12 hotele. Ndërtesat i shet te Banka për gjysmën e çmimit.</p>'+
   '<h4>Hipoteka</h4><p>Merr gjysmën e çmimit nga Banka. Për ta shlyer paguan atë shumë plus 10%. Shit ndërtesat e grupit para se të hipotekosh.</p>'+
-  '<h4>Burgu</h4><p>Për të dalë: paguaj '+eur(50)+' para se të hedhësh, përdor letrën "Dil nga burgu falas", ose hidh dyshe. Pas përpjekjes së tretë pa sukses paguan '+eur(50)+' dhe lëviz. Në burg mund të mbledhësh qira.</p>'+
+  '<h4>Burgu</h4><p>Për të dalë: paguaj '+eur(50)+' para se të hedhësh, përdor letrën "Dil nga burgu falas", ose hidh dyshe. Pas hedhjes së tretë pa dyshe del falas, pa paguar, dhe ecën me atë hedhje. Në burg mund të mbledhësh qira.</p>'+
   '<h4>Borxhi dhe falimentimi</h4><p>Nëse s\'ke para, shit ndërtesa ose hipotekoni prona. Nëse prapë nuk mjafton, falimenton dhe pasuria kalon te lojtari të cilit i ke borxh, ose te Banka.</p>'+
   '<h4>Online dhe zëri</h4><p>Te "Lojë e re" → "Online me shokë" krijo një dhomë dhe dërgoju shokëve kodin ose linkun. Shtyp "Fol me zë" për të folur me ta gjatë lojës; zëri kalon nga i njëjti server si loja, prandaj punon në çdo rrjet. Përdor kufje nëse dëgjon jehonë.</p></div>');
 }

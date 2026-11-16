@@ -316,7 +316,7 @@ input,select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(
     <section class="panel act" id="act" aria-live="polite"></section>
     <section class="panel" id="playersPanel"><h2>Lojtarët</h2><div class="players" id="players"></div></section>
     <section class="panel" id="logPanel"><h2>Ngjarjet</h2><div class="log" id="log"></div></section>
-    <p class="note credline" style="margin:0">Fotot: Wikimedia Commons. <button class="btn sm" data-ui="credits">Autorët e fotove</button></p>
+    <p class="note credline" style="margin:0">Fotot: Wikimedia Commons. <button class="btn sm" data-ui="credits">Autorët e fotove</button> · Versioni 16.11 (v9)</p>
   </aside>
 </div>
 <div id="modal"></div>
@@ -595,10 +595,10 @@ function bankrupt(pi,creditor){
   const p=P(pi);
   propsOf(pi).forEach(i=>{const o=st.own[i];if(o.h>0){const c=GR[S[i].g].h;p.money+=o.h*c/2;if(o.h===5)st.hotels++;else st.houses+=o.h;o.h=0}});
   if(creditor!=null&&!P(creditor).out){
-    P(creditor).money+=Math.max(0,p.money);
-    propsOf(pi).forEach(i=>st.own[i].o=creditor);
-    p.cards.forEach(c=>P(creditor).cards.push(c));
-    log(pname(pi)+' FALIMENTOI. Gjithçka kalon te '+pname(creditor)+'.');
+    const cash=Math.max(0,p.money); P(creditor).money+=cash;
+    propsOf(pi).forEach(i=>delete st.own[i]);
+    p.cards.forEach(c=>st.decks[c.k].push(c.id));
+    log(pname(pi)+' FALIMENTOI. '+pname(creditor)+' merr vetëm paratë ('+eur(cash)+'); pronat kthehen te Banka.');
   }else{
     propsOf(pi).forEach(i=>delete st.own[i]);
     p.cards.forEach(c=>st.decks[c.k].push(c.id));
@@ -695,8 +695,10 @@ function endTurn(force){
   st.msg='Radha e '+esc(P(n).name)+(P(n).jail?' (në burg)':'')+'. Kliko zaret.';
   render();
 }
+/* while a purchase is being decided, money can't be raised by mortgaging or selling: land is bought with cash only */
+function buyLock(){return !!(st&&st.pend&&st.pend.k==='buy')}
 function payJail(){
-  const p=curP(); if(!p.jail||st.phase!=='roll'||p.money<50||st.pend)return;
+  const p=curP(); if(!p.jail||st.phase!=='roll'||p.money<50||st.pend||p.jailTurns>=2)return;
   p.money-=50;p.jail=false;p.jailTurns=0;log(pname(st.cur)+' pagoi '+eur(50)+' dhe doli nga burgu.');st.msg=esc(p.name)+' është i lirë. Hidh zaret.';render();
 }
 function useJailCard(){
@@ -851,10 +853,7 @@ function autoRaise(pi,need){
 }
 function botBuy(pi,i){
   const p=P(pi),s=S[i],w=worth(pi,i),spare=p.money-s.p;
-  if(p.money<s.p){ // worth mortgaging loose properties for a set-completing buy
-    if(completesSet(pi,i)&&liquidValue(pi)-p.money>=s.p-p.money+20){autoRaise(pi,s.p);return P(pi).money>=s.p}
-    return false;
-  }
+  if(p.money<s.p)return false; // land is bought with cash in hand only, never by mortgaging
   if(completesSet(pi,i)||w>=s.p*1.7)return spare>=20;
   if(freeLeft()>14)return spare>=60;                          // early game: grab land
   return spare>=reserve(pi)*(w>=s.p*1.3?0.5:1);
@@ -938,7 +937,7 @@ async function botStep(){
       const late=freeLeft()<6&&danger(pi)>=250;  // late game: jail is a safe place to sit
       if(!late){
         if(p.cards.length){useJailCard();return}
-        if(p.money>=50+reserve(pi)*0.4){payJail();return}
+        if(p.jailTurns<2&&p.money>=50+reserve(pi)*0.4){payJail();return}  // on the last try the way out is free
       }
     }
     if(!p.jail)botDevelop(pi);
@@ -1005,7 +1004,7 @@ setInterval(()=>{
 const GAME={
   roll:()=>roll(), buy, auction:startAuction, bid:n=>aBid(+n), pass:aPass, endTurn:()=>endTurn(),
   payJail, useCard:useJailCard, payDebt, bankrupt:declareBankrupt,
-  build:i=>{build(+i);render()}, sell:i=>{sellHouse(+i);render()}, mort:i=>{mortgage(+i);render()}, unmort:i=>{unmortgage(+i);render()},
+  build:i=>{build(+i);render()}, sell:i=>{if(!buyLock())sellHouse(+i);render()}, mort:i=>{if(!buyLock())mortgage(+i);render()}, unmort:i=>{unmortgage(+i);render()},
   offer:t=>makeOffer(t), tAccept:()=>offerReply(true), tReject:()=>offerReply(false), tCancel:()=>{st.offer=null;st.msg='Oferta u anulua.';render()},
 };
 function actorOf(name,arg){
@@ -1220,7 +1219,7 @@ function renderActions(){
     const s=S[a.i];
     h+='<p class="lead">'+esc(s.n)+' është e lirë.</p><p class="note">Çmimi '+eur(s.p)+'. Ti ke '+eur(p.money)+'. Nëse nuk e blen, del në ankand për të gjithë.</p>'+
       '<div class="row"><button class="btn pri" data-act="buy" '+(p.money<s.p?'disabled':'')+'>Bli për '+eur(s.p)+'</button><button class="btn" data-act="auction">Nxirre në ankand</button><button class="btn sm" data-ui="deed" data-arg="'+a.i+'">Shih letrën</button></div>'+
-      (p.money<s.p?'<p class="note" style="margin-top:8px">Nuk ke mjaft para. Hipotekoni një pronë ose nxirre në ankand.</p>':'');
+      (p.money<s.p?'<p class="note" style="margin-top:8px">Nuk ke mjaft para. Pronat blihen vetëm me para në dorë, pa hipotekuar; nxirre në ankand.</p>':'');
   }else if(a&&a.k==='debt'){
     const total=a.list.reduce((x,y)=>x+y.amt,0),d=P(a.pi);
     h+='<p class="lead" style="color:var(--danger)">Je në borxh: '+eur(total)+'</p><p class="note">'+esc(a.why)+'. Ke '+eur(d.money)+'. Shit shtëpi ose hipotekoni prona (kliko pronat më poshtë), pastaj paguaj. Mund të mbledhësh deri në '+eur(liquidValue(a.pi))+'.</p>'+
@@ -1228,7 +1227,7 @@ function renderActions(){
   }else if(st.phase==='roll'){
     if(p.jail){
       h+='<p class="lead">Je në burg (përpjekja '+(p.jailTurns+1)+' nga 3).</p><p class="note">Hidh dyshe për të dalë, paguaj '+eur(50)+' ose përdor letrën e lirimit. '+(p.jailTurns>=2?'Kjo është hedhja e fundit: del falas me këtë hedhje.':'Pas hedhjes së tretë del falas.')+'</p>'+
-        '<div class="row"><button class="btn pri" data-act="roll" '+(busy?'disabled':'')+'>Hidh zaret</button><button class="btn" data-act="payJail" '+(p.money<50?'disabled':'')+'>Paguaj '+eur(50)+'</button>'+(p.cards.length?'<button class="btn gold" data-act="useCard">Përdor letrën</button>':'')+'</div>';
+        '<div class="row"><button class="btn pri" data-act="roll" '+(busy?'disabled':'')+'>'+(p.jailTurns>=2?'Hidh zaret – del falas':'Hidh zaret')+'</button>'+(p.jailTurns>=2?'':'<button class="btn" data-act="payJail" '+(p.money<50?'disabled':'')+'>Paguaj '+eur(50)+' (s\'është e detyrueshme)</button>')+(p.cards.length?'<button class="btn gold" data-act="useCard">Përdor letrën</button>':'')+'</div>';
     }else{
       h+='<p class="lead">'+(st.msg||'Hidh zaret.')+'</p><div class="row"><button class="btn pri" data-act="roll" '+(busy?'disabled':'')+'>Hidh zaret</button><button class="btn" data-ui="trade" '+(busy?'disabled':'')+'>Bëj marrëveshje</button></div>';
     }
@@ -1392,10 +1391,10 @@ function openDeed(i){
     const c=s.g?GR[s.g].h:0;
     btns='<div class="row">'+
       (s.t==='st'?'<button class="btn pri" data-act="build" data-arg="'+i+'" '+(canBuild(i)?'':'disabled')+'>'+(o.h===4?'Ndërto hotel':'Ndërto shtëpi')+' (−'+eur(c)+')</button>'+
-       '<button class="btn" data-act="sell" data-arg="'+i+'" '+(canSell(i)?'':'disabled')+'>Shit ndërtesë (+'+eur(c/2)+')</button>':'')+
+       '<button class="btn" data-act="sell" data-arg="'+i+'" '+(canSell(i)&&!buyLock()?'':'disabled')+'>Shit ndërtesë (+'+eur(c/2)+')</button>':'')+
       (o.m?'<button class="btn gold" data-act="unmort" data-arg="'+i+'" '+(canUnmortgage(i)?'':'disabled')+'>Shlyej hipotekën (−'+eur(unmortCost(i))+')</button>'
-          :'<button class="btn" data-act="mort" data-arg="'+i+'" '+(canMortgage(i)?'':'disabled')+'>Hipotekë (+'+eur(s.p/2)+')</button>')+
-      '</div>';
+          :'<button class="btn" data-act="mort" data-arg="'+i+'" '+(canMortgage(i)&&!buyLock()?'':'disabled')+'>Hipotekë (+'+eur(s.p/2)+')</button>')+
+      '</div>'+(buyLock()?'<p class="note" style="margin-top:8px">Gjatë blerjes nuk mund të hipotekosh ose të shesësh: pronat blihen vetëm me para në dorë.</p>':'');
     if(s.t==='st'&&!ownsAll(o.o,s.g))btns+='<p class="note" style="margin-top:8px">Për të ndërtuar duhet të kesh të gjithë grupin '+GR[s.g].n.toLowerCase()+'.</p>';
     else if(s.t==='st')btns+='<p class="note" style="margin-top:8px">Ndërto në mënyrë të barabartë: asnjë pronë e grupit s\'mund të ketë 2 ndërtesa më shumë se tjetra.</p>';
   }
@@ -1473,14 +1472,14 @@ function openRules(){
   showModal('<button class="btn sm x" data-ui="close">Mbyll</button><h3>Rregullat</h3><div class="rules">'+
   '<h4>Si të fitosh</h4><p>Bëhu lojtari i fundit në lojë pasi të gjithë të tjerët falimentojnë. Bli prona, ndërto shtëpi dhe hotele dhe mblidh qira.</p>'+
   '<h4>Në radhën tënde</h4><ul><li>Prek zaret në mes të tabelës. Dora i tund dhe i hedh; shuma tregon sa hapa ecën.</li><li>Nëse kalon NISU merr '+eur(200)+'.</li><li>Dyshe: hidh përsëri. Tri dyshe radhazi: shko në burg.</li></ul>'+
-  '<h4>Prona e lirë</h4><p>Bleje me çmimin e shënuar. Nëse nuk e blen, del në ankand dhe çdo lojtar mund të ofrojë, edhe ti. Mund të blesh vetëm <b>një pronë për radhë</b>: nëse hedh dyshe dhe bie në një pronë tjetër të lirë, nuk mund ta blesh në të njëjtën radhë.</p>'+
+  '<h4>Prona e lirë</h4><p>Bleje me çmimin e shënuar, vetëm me paratë që ke (nuk mund të hipotekosh për ta blerë). Nëse nuk e blen, del në ankand dhe çdo lojtar mund të ofrojë, edhe ti. Mund të blesh vetëm <b>një pronë për radhë</b>: nëse hedh dyshe dhe bie në një pronë tjetër të lirë, nuk mund ta blesh në të njëjtën radhë.</p>'+
   '<h4>Dyshet dhe qiraja</h4><p>Kur hedh dyshe, nuk paguan qira në pronat ku ndalon gjatë radhës: <b>paguan vetëm aty ku ndalon në fund</b>, pas hedhjes që nuk është dyshe. Tri dyshe radhazi: shko në burg.</p>'+
   '<h4>Koha</h4><p>Çdo lojtar ka 20 sekonda për çdo vendim (mund ta ndryshosh kur krijon lojën). Kur mbaron koha, loja vendos vetë: hedh zaret, nuk e blen pronën (del në ankand), tërhiqet nga ankandi ose mbyll radhën.</p>'+
   '<h4>Prona e dikujt tjetër</h4><p>Paguaj qiranë. Me gjithë grupin e ngjyrës, qiraja pa ndërtesa dyfishohet. Pronat e hipotekuara nuk japin qira. Transportet: '+eur(25)+' / '+eur(50)+' / '+eur(100)+' / '+eur(200)+'. Shërbimet komunale: 4× ose 10× zaret.</p>'+
   '<h4>Ndërtimi</h4><p>Kur ke gjithë grupin, ndërto shtëpi në mënyrë të barabartë. Pas 4 shtëpive mund të ndërtosh hotel. Banka ka vetëm 32 shtëpi dhe 12 hotele. Ndërtesat i shet te Banka për gjysmën e çmimit.</p>'+
   '<h4>Hipoteka</h4><p>Merr gjysmën e çmimit nga Banka. Për ta shlyer paguan atë shumë plus 10%. Shit ndërtesat e grupit para se të hipotekosh.</p>'+
   '<h4>Burgu</h4><p>Për të dalë: paguaj '+eur(50)+' para se të hedhësh, përdor letrën "Dil nga burgu falas", ose hidh dyshe. Pas hedhjes së tretë pa dyshe del falas, pa paguar, dhe ecën me atë hedhje. Në burg mund të mbledhësh qira.</p>'+
-  '<h4>Borxhi dhe falimentimi</h4><p>Nëse s\'ke para, shit ndërtesa ose hipotekoni prona. Nëse prapë nuk mjafton, falimenton dhe pasuria kalon te lojtari të cilit i ke borxh, ose te Banka.</p>'+
+  '<h4>Borxhi dhe falimentimi</h4><p>Nëse s\'ke para, shit ndërtesa ose hipotekoni prona. Nëse prapë nuk mjafton, falimenton: lojtari të cilit i ke borxh merr vetëm paratë që të kanë mbetur, ndërsa të gjitha pronat kthehen te Banka dhe mund të blihen përsëri.</p>'+
   '<h4>Online dhe zëri</h4><p>Te "Lojë e re" → "Online me shokë" krijo një dhomë dhe dërgoju shokëve kodin ose linkun. Shtyp "Fol me zë" për të folur me ta gjatë lojës; zëri kalon nga i njëjti server si loja, prandaj punon në çdo rrjet. Përdor kufje nëse dëgjon jehonë.</p></div>');
 }
 function openCredits(){

@@ -604,6 +604,8 @@ function sendJail(pi){
 }
 async function land(pi,opt={}){
   const p=P(pi),i=p.pos,s=S[i];
+  /* a stop after a double doesn't count: no buying, rent, cards or taxes; only the final stop of the turn does (the 'Shko në burg' corner still sends you to jail) */
+  if(st.again&&s.t!=='gojail'&&!(ownable(i)&&st.own[i]&&st.own[i].o===pi)){st.msg=esc(p.name)+' kalon nga '+esc(s.n)+'. Hodhe dyshe: këtu nuk ndodh asgjë, hidh përsëri. Blen, paguan ose merr letër vetëm aty ku ndalon në fund.';log(pname(pi)+' kalon nga '+esc(s.n)+' (dyshe – vlen vetëm ndalesa e fundit).');return}
   if(ownable(i)){
     const o=st.own[i];
     if(st.again&&(!o||o.o!==pi)){st.msg=esc(p.name)+' kalon nga '+esc(s.n)+'. Hodhe dyshe: blen ose paguan qira vetëm aty ku ndalon në fund të radhës.';log(pname(pi)+' kalon nga '+esc(s.n)+' (dyshe – vetëm ndalesa e fundit vlen).');return}
@@ -1619,7 +1621,7 @@ function openRules(){
   '<h4>Si të fitosh</h4><p>Bëhu lojtari i fundit në lojë pasi të gjithë të tjerët falimentojnë. Bli prona, ndërto shtëpi dhe hotele dhe mblidh qira.</p>'+
   '<h4>Në radhën tënde</h4><ul><li>Prek zaret në mes të tabelës. Dora i tund dhe i hedh; shuma tregon sa hapa ecën.</li><li>Nëse kalon NISU merr '+eur(200)+'.</li><li>Dyshe: hidh përsëri. Tri dyshe radhazi: shko në burg.</li></ul>'+
   '<h4>Prona e lirë</h4><p>Bleje me çmimin e shënuar, vetëm me paratë që ke (nuk mund të hipotekosh për ta blerë). Nëse nuk e blen, del në ankand dhe çdo lojtar mund të ofrojë, edhe ti. Mund të blesh vetëm <b>një pronë për radhë</b>: nëse hedh dyshe dhe bie në një pronë tjetër të lirë, nuk mund ta blesh në të njëjtën radhë.</p>'+
-  '<h4>Dyshet</h4><p>Kur hedh dyshe, ndalesa pas asaj hedhjeje nuk vlen: aty <b>nuk blen dhe nuk paguan qira</b>. Blen ose paguan vetëm aty ku ndalon në fund, pas hedhjes që nuk është dyshe. Tri dyshe radhazi: shko në burg.</p>'+
+  '<h4>Dyshet</h4><p>Kur hedh dyshe, ndalesa pas asaj hedhjeje nuk vlen: aty <b>nuk blen, nuk paguan qira ose taksë dhe nuk tërheq letër Shans/Arka</b>. Të gjitha këto i bën vetëm aty ku ndalon në fund, pas hedhjes që nuk është dyshe. Tri dyshe radhazi: shko në burg. (Fusha \'Shko në burg\' të dërgon në burg gjithmonë.)</p>'+
   '<h4>Koha</h4><p>Çdo lojtar ka 20 sekonda për çdo vendim (mund ta ndryshosh kur krijon lojën). Kur mbaron koha, loja vendos vetë: hedh zaret, nuk e blen pronën (del në ankand), tërhiqet nga ankandi ose mbyll radhën.</p>'+
   '<h4>Prona e dikujt tjetër</h4><p>Paguaj qiranë. Me gjithë grupin e ngjyrës, qiraja pa ndërtesa dyfishohet. Pronat e hipotekuara nuk japin qira. Transportet: '+eur(25)+' / '+eur(50)+' / '+eur(100)+' / '+eur(200)+'. Shërbimet komunale: 4× ose 10× zaret.</p>'+
   '<h4>Ndërtimi</h4><p>Kur ke gjithë grupin, ndërto shtëpi në mënyrë të barabartë. Pas 4 shtëpive mund të ndërtosh hotel. Banka ka vetëm 32 shtëpi dhe 12 hotele. Ndërtesat i shet te Banka për gjysmën e çmimit.</p>'+

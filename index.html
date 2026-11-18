@@ -21,6 +21,7 @@
 <style>
 /* Layout: a printed board lying on a table (11x11 grid, fixed paper look) with a felt dice tray in its centre; the control desk sits right, stacks under on phones. */
 :root{
+  --wood-1:#7a4a2a; --wood-2:#5e3820; --wood-3:#8c5a35;
   --bg:#e4ebe6; --bg-2:#d6e0d9; --panel:#ffffff; --panel-2:#f2f6f3; --ink:#13203a; --muted:#596678; --line:#d0dad3;
   --accent:#244aa5; --accent-ink:#ffffff; --gold:#b98a14; --danger:#c62f2f; --ok:#1f8a4c;
   /* the board is a printed object: identical in both themes */
@@ -48,11 +49,35 @@ button:focus-visible,input:focus-visible,select:focus-visible,.cell:focus-visibl
 @media (max-width:980px){.app{grid-template-columns:minmax(0,1fr)}}
 
 /* ---------- board ---------- */
-.board{container-type:inline-size;width:min(100%,calc(100vh - 32px));aspect-ratio:1;max-width:100%;position:relative;
+.board{container-type:inline-size;width:min(100%,calc(100vh - 80px));aspect-ratio:1;max-width:100%;position:relative;
   display:grid;grid-template-columns:1.6fr repeat(9,1fr) 1.6fr;grid-template-rows:1.6fr repeat(9,1fr) 1.6fr;
   background:var(--frame);gap:1px;border:.7cqw solid var(--frame);border-radius:1cqw;color:var(--tile-ink);
   box-shadow:0 2px 0 #0a1428,0 30px 60px -24px rgba(5,12,30,.65),0 10px 20px -10px rgba(5,12,30,.4);transition:transform .8s cubic-bezier(.2,.7,.2,1);transform-origin:50% 55%}
-.board.tilt{transform:rotateX(30deg) scale(.96);transform-style:preserve-3d;box-shadow:0 2px 0 #0a1428,0 60px 50px -30px rgba(5,12,30,.75)}
+.board.tilt{transform:rotateX(30deg) scale(.96);transform-style:preserve-3d;
+  box-shadow:0 1px 0 #1b2c4f,0 2px 0 #18284a,0 3px 0 #162545,0 4px 0 #142240,0 5px 0 #121f3b,0 6px 0 #101c36,0 7px 0 #0e1931,0 8px 0 #0c162c,0 9px 0 #0a1327,0 10px 0 #091123,
+  0 40px 40px -10px rgba(0,0,0,.55),0 80px 70px -30px rgba(0,0,0,.5)}
+.board::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:9;border-radius:inherit;
+  background:radial-gradient(120% 80% at 18% 0%,rgba(255,255,255,.22),rgba(255,255,255,0) 45%),radial-gradient(90% 70% at 100% 100%,rgba(0,0,0,.18),rgba(0,0,0,0) 60%)}
+.board-wrap{background:radial-gradient(130% 95% at 50% 40%,rgba(0,0,0,0) 55%,rgba(0,0,0,.35) 100%),repeating-linear-gradient(92deg,rgba(255,255,255,.035) 0 2px,rgba(0,0,0,.05) 2px 5px,rgba(255,255,255,0) 5px 11px),linear-gradient(180deg,var(--wood-3),var(--wood-1) 55%,var(--wood-2));
+  border-radius:18px;padding:14px;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),0 10px 30px rgba(5,12,30,.25)}
+.blds{position:absolute;inset:0;pointer-events:none;z-index:5}
+.board.tilt .blds,.board.tilt .bld{transform-style:preserve-3d}
+.bld{position:absolute;left:0;top:0;width:2.3cqw;height:2.5cqw;filter:drop-shadow(0 .2cqw .2cqw rgba(0,0,0,.45))}
+.bld.ho{width:3.3cqw;height:2.7cqw}
+.bld svg{width:100%;height:100%;display:block;overflow:visible}
+.board.tilt .bld svg{transform:rotateX(-30deg);transform-origin:50% 90%}
+.bld.drop svg{animation:bdrop .75s cubic-bezier(.3,1.5,.5,1)}
+@keyframes bdrop{from{transform:translateY(-4cqw) scale(1.6);opacity:0}to{opacity:1}}
+.board.tilt .bld.drop svg{animation:bdrop3 .75s cubic-bezier(.3,1.5,.5,1)}
+@keyframes bdrop3{from{transform:rotateX(-30deg) translateY(-4cqw) scale(1.6);opacity:0}to{transform:rotateX(-30deg);opacity:1}}
+.figgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:8px 0 6px}
+.figbtn{display:flex;flex-direction:column;align-items:center;gap:2px;border:2px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:12px;padding:8px 4px;font-weight:700;font-size:12px}
+.figbtn svg{width:34px;height:44px;overflow:visible}
+.figbtn.on{border-color:var(--accent);box-shadow:0 0 0 2px color-mix(in srgb,var(--accent) 30%,transparent)}
+.figbtn:disabled{opacity:.4}
+.figbtn small{font-size:10px;color:var(--muted);font-weight:600}
+.menu-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.menu-list .btn{text-align:left;padding:12px 14px;font-size:15px}
 @media (max-width:980px){.board{width:min(100%,760px)}}
 .cell{background:var(--tile);position:relative;display:flex;overflow:hidden;cursor:pointer;min-width:0;min-height:0}
 .cell:hover{filter:brightness(1.05)}
@@ -288,39 +313,63 @@ input,select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(
 .fig-pick{display:flex;align-items:center;gap:6px}
 .fig-pick svg{width:26px;height:34px;overflow:visible}
 .srow>span svg{width:28px;height:36px;overflow:visible}
-/* phones in portrait: board edge to edge, players as a strip, actions docked at the bottom */
+/* phones in portrait: one screen, no page scrolling — toolbar, players strip, the board as large as fits, actions at the bottom */
 @media (max-width:980px) and (orientation:portrait),(max-width:640px){
+  html,body{height:100%;overflow:hidden;overscroll-behavior:none}
   .only-touch{display:inline-flex}
-  .app{display:flex;flex-direction:column;align-items:stretch;gap:10px;padding-block:8px calc(var(--dock-h,170px) + 14px);padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+  .desk-only,#room,#pfPanel,#logPanel,.credline{display:none!important}
+  .app{display:flex;flex-direction:column;align-items:stretch;height:100dvh;gap:6px;overflow:hidden;
+    padding-block:max(6px,env(safe-area-inset-top,0px)) 0;padding-left:max(6px,env(safe-area-inset-left,0px));padding-right:max(6px,env(safe-area-inset-right,0px))}
   .desk{display:contents}
-  .top{order:1}#playersPanel{order:2}.board-wrap{order:3}#pfPanel{order:3}#room{order:4}#logPanel{order:5}.credline{order:6}
-  .board{width:100%}
-  .brand{display:none}
-  .top .links{flex-wrap:nowrap;justify-content:space-between;width:100%}
+  .top{order:1;flex:0 0 auto}
+  #playersPanel{order:2;flex:0 0 auto;padding:0;background:none;border:0}
+  #playersPanel h2{display:none}
+  .board-wrap{order:3;flex:1 1 auto;min-height:0;container-type:size;align-items:center;justify-content:center;padding:6px;border-radius:14px}
+  .board{width:min(100cqw,100cqh)}
+  .board.tilt{transform:rotateX(22deg) scale(.97)}
+  .board.tilt .pawn svg,.board.tilt .mfloat,.board.tilt .bld svg{transform:rotateX(-22deg)}
+  .board.tilt .bld.drop svg{animation:bdrop .75s cubic-bezier(.3,1.5,.5,1)}
+  .board-wrap.zoom{max-height:none;overflow:auto;align-items:flex-start;justify-content:flex-start}
+  .board-wrap.zoom .board{width:calc(min(100cqw,100cqh)*1.9)}
+  #act{order:4;flex:0 0 auto;max-height:34dvh;overflow:auto;margin:0 calc(-1*max(6px,env(safe-area-inset-right,0px))) 0 calc(-1*max(6px,env(safe-area-inset-left,0px)));
+    border-radius:16px 16px 0 0;border-bottom:0;padding:10px max(14px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px));box-shadow:0 -10px 24px rgba(5,12,30,.22)}
+  #act .tbar{height:16px;margin-bottom:6px}#act .tbar b{line-height:14px;font-size:11px}
+  #act h2{margin-bottom:2px;font-size:11px}
+  #act p{margin-bottom:6px}
+  #act .lead{font-size:14px}
+  #act .note{font-size:12px}
   #act .hint{display:none}
-  .ibtn span{display:none}
-  .ibtn{padding:8px}
-  #playersPanel{padding:8px}#playersPanel h2{display:none}
-  .players{flex-direction:row;overflow-x:auto;gap:6px;scrollbar-width:none}
-  .pl{flex:0 0 auto;min-width:148px;padding:6px 10px 6px 6px;gap:8px;border:1px solid var(--line);grid-template-columns:auto minmax(0,1fr)}
-  .pl .money{grid-column:2;font-size:13px}
-  .pl .sub,.pl .chips{display:none}
-  .pl .pw{width:26px;height:34px;grid-row:span 2}
-  #act{position:fixed;left:0;right:0;bottom:0;z-index:30;margin:0;border-radius:18px 18px 0 0;border-bottom:0;max-height:46vh;overflow:auto;
-    padding:12px max(14px,env(safe-area-inset-right,0px)) calc(12px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px));box-shadow:0 -12px 30px rgba(5,12,30,.28)}
-  #act h2{margin-bottom:4px}
-  #act p{margin-bottom:8px}
-  #act .props{flex-wrap:nowrap;overflow-x:auto;margin-top:8px;padding-top:8px;scrollbar-width:none}
+  #act .btn{padding:9px 12px}
+  #act .props{flex-wrap:nowrap;overflow-x:auto;margin-top:6px;padding-top:6px;scrollbar-width:none}
   .pchip{flex:0 0 auto}
-  .log{max-height:150px}
-}
-/* phones in landscape: board fills the height, controls beside it */
-@media (max-width:980px) and (orientation:landscape) and (max-height:600px){
-  .only-touch{display:inline-flex}
-  .app{grid-template-columns:auto minmax(0,1fr);gap:10px;padding-block:6px}
-  .board{width:calc(100dvh - 12px)}
+  .brand{display:none}
+  .top .links{flex-wrap:nowrap;justify-content:space-between;width:100%;gap:4px}
   .ibtn span{display:none}
-  .desk{max-height:calc(100dvh - 12px);overflow:auto}
+  .ibtn{padding:7px}
+  .players{flex-direction:row;overflow-x:auto;gap:6px;scrollbar-width:none}
+  .pl{flex:0 0 auto;min-width:0;padding:4px 10px 4px 4px;gap:6px;border:1px solid var(--line);background:var(--panel);grid-template-columns:auto auto;border-radius:12px}
+  .pl.cur{background:var(--panel)}
+  .pl .nm2{font-size:12px;max-width:96px}
+  .pl .badge{display:none}
+  .pl .money{grid-column:2;font-size:12px}
+  .pl .sub,.pl .chips{display:none}
+  .pl .pw{width:22px;height:29px;grid-row:span 2}
+}
+/* phones in landscape: board fills the height, controls beside it, nothing scrolls but the side column */
+@media (max-width:980px) and (orientation:landscape) and (max-height:600px){
+  html,body{height:100%;overflow:hidden}
+  .only-touch{display:inline-flex}
+  .desk-only,#pfPanel,#logPanel,.credline{display:none!important}
+  .app{display:grid;grid-template-columns:auto minmax(0,1fr);height:100dvh;gap:8px;padding:4px max(8px,env(safe-area-inset-right,0px)) 4px max(8px,env(safe-area-inset-left,0px))}
+  .board-wrap{padding:4px;border-radius:10px}
+  .board{width:calc(100dvh - 16px)}
+  .board.tilt{transform:rotateX(18deg) scale(.97)}
+  .board.tilt .pawn svg,.board.tilt .mfloat,.board.tilt .bld svg{transform:rotateX(-18deg)}
+  .ibtn span{display:none}
+  .brand{display:none}
+  .desk{height:calc(100dvh - 8px);overflow:auto;gap:8px}
+  #room{display:none!important}
+  .pl .sub,.pl .chips{display:none}
 }
 @media (prefers-reduced-motion:reduce){.tray.can::after,.pawn.now::before,.card,.turnban,.house.drop,.hotel.drop,.cell.flash,.mfloat{animation:none}.board{transition:none}}
 </style>
@@ -334,10 +383,12 @@ input,select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(
         <button class="ibtn" data-ui="tilt" id="tiltBtn" aria-pressed="false" title="Pamje 3D"><svg viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9zM12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg><span>3D</span></button>
         <button class="ibtn only-touch" data-ui="zoom" id="zoomBtn" aria-pressed="false" title="Zmadho dhe ndiq figurën"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l5 5M8 11h6M11 8v6"/></svg><span>Zmadho</span></button>
         <button class="ibtn" data-ui="fullscreen" id="fsBtn" title="Ekran i plotë"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span>Ekran i plotë</span></button>
-        <button class="ibtn" data-ui="sound" id="sndBtn" aria-pressed="true" title="Efektet zanore"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg><span>Efektet</span></button>
+        <button class="ibtn" data-ui="mic" id="micBtn" hidden aria-pressed="false" title="Zëri me shokët"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg><span>Zëri</span></button>
+        <button class="ibtn desk-only" data-ui="sound" id="sndBtn" aria-pressed="true" title="Efektet zanore"><svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg><span>Efektet</span></button>
         <button class="ibtn" data-ui="pf" title="Portofoli"><svg viewBox="0 0 24 24"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H18v3M3 7.5V17a2 2 0 0 0 2 2h15V8H5.5A2.5 2.5 0 0 1 3 7.5z"/><circle cx="16" cy="13.5" r="1.2"/></svg><span>Portofoli</span></button>
-        <button class="ibtn" data-ui="rules" title="Rregullat"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7"/></svg><span>Rregullat</span></button>
-        <button class="ibtn" data-ui="setup" title="Lojë e re"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Lojë e re</span></button>
+        <button class="ibtn desk-only" data-ui="rules" title="Rregullat"><svg viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7"/></svg><span>Rregullat</span></button>
+        <button class="ibtn desk-only" data-ui="setup" title="Lojë e re"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg><span>Lojë e re</span></button>
+        <button class="ibtn only-touch" data-ui="menu" title="Menyja"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></svg><span>Menyja</span></button>
       </div>
     </div>
     <section class="panel room" id="room" hidden></section>
@@ -345,7 +396,7 @@ input,select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(
     <section class="panel" id="pfPanel" hidden></section>
     <section class="panel" id="playersPanel"><h2>Lojtarët</h2><div class="players" id="players"></div></section>
     <section class="panel" id="logPanel"><h2>Ngjarjet</h2><div class="log" id="log"></div></section>
-    <p class="note credline" style="margin:0">Fotot: Wikimedia Commons. <button class="btn sm" data-ui="credits">Autorët e fotove</button> · Versioni 16.11 (v10)</p>
+    <p class="note credline" style="margin:0">Fotot: Wikimedia Commons. <button class="btn sm" data-ui="credits">Autorët e fotove</button> · Versioni 18.11 (v11)</p>
   </aside>
 </div>
 <div id="modal"></div>
@@ -527,7 +578,9 @@ function newGame(cfg,online,turnSec){
     decks:{sh:shuffle([...Array(CARDS.sh.length).keys()]),ch:shuffle([...Array(CARDS.ch.length).keys()])},
     pend:null,offer:null,houses:32,hotels:12,msg:'',card:null,winner:null,turnNo:1,gid:Math.random().toString(36).slice(2,9),turnSec:turnSec==null?20:turnSec,deadline:null,boughtTurn:false};
   log('Loja filloi. Secili lojtar merr '+eur(1500)+'.');
-  st.msg=esc(curP().name)+' fillon i pari. Kliko zaret për t\'i hedhur.';
+  st.cur=Math.floor(Math.random()*st.players.length);
+  log(pname(st.cur)+' u zgjodh rastësisht të fillojë i pari.');
+  st.msg=esc(curP().name)+' u zgjodh rastësisht dhe fillon i pari.';
   shownRoll=0; closeModal(); render();
 }
 function save(){if(role!=='offline')return;try{localStorage.setItem(SAVE_KEY,JSON.stringify(st))}catch(e){}}
@@ -553,6 +606,7 @@ async function land(pi,opt={}){
   const p=P(pi),i=p.pos,s=S[i];
   if(ownable(i)){
     const o=st.own[i];
+    if(st.again&&(!o||o.o!==pi)){st.msg=esc(p.name)+' kalon nga '+esc(s.n)+'. Hodhe dyshe: blen ose paguan qira vetëm aty ku ndalon në fund të radhës.';log(pname(pi)+' kalon nga '+esc(s.n)+' (dyshe – vetëm ndalesa e fundit vlen).');return}
     if(!o&&st.boughtTurn){st.msg=esc(p.name)+' qëndron në '+esc(s.n)+', por ka blerë tashmë një pronë në këtë radhë. Mund të blesh vetëm një pronë për radhë.';log(pname(pi)+' nuk mund të blejë '+esc(s.n)+': vetëm një blerje për radhë.');return}
     if(!o){st.pend={k:'buy',i};st.msg=esc(p.name)+' qëndron në '+esc(s.n)+'. Pronë e lirë: '+eur(s.p)+'.';return}
     if(o.o===pi){st.msg=esc(p.name)+' është në pronën e vet.';return}
@@ -1136,7 +1190,7 @@ function cellHTML(i,drop){
   else if(s.t==='gojail')inner='<div class="corner"><span class="sm">Shko</span><svg viewBox="0 0 24 24" style="width:5cqw;height:5cqw;fill:none;stroke:#13203a;stroke-width:1.8;stroke-linecap:round"><path d="M4 12h12M12 6l6 6-6 6M20 4v16"/></svg><span class="big" style="font-size:1.7cqw">NË BURG</span></div>';
   else if(s.t==='st'){
     let hs='';
-    if(o&&o.h===5)hs='<span class="hotel'+(drop?' drop':'')+'"></span>';else if(o)for(let k=0;k<o.h;k++)hs+='<span class="house'+(drop&&k===o.h-1?' drop':'')+'"></span>';
+    /* buildings are drawn as standing pieces on the figures layer (renderBuildings) */
     inner='<div class="bar" style="background:'+GR[s.g].c+'">'+hs+'</div><div class="body"><div class="ph" style="'+bgimg(i)+'"></div><span class="nm">'+esc(s.n)+'</span><span class="pr">'+eur(s.p)+'</span></div>';
   }else{
     let mid=s.t==='sh'?'<span class="q">?</span>':s.t==='ch'?svgI('chest'):svgI(s.ic);
@@ -1157,11 +1211,11 @@ function renderCells(){
     if(fx.ready&&ow>=0&&fx.own[i]!==ow&&!reduced){el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash')}
     fx.h[i]=h0;fx.own[i]=ow;
   }
-  renderPawns();
+  renderPawns(); renderBuildings();
 }
 /* ---------- effects state (reset per game) ---------- */
 const fx={gid:null,ready:false,h:[],own:[],money:[],cur:null};
-function fxReset(){if(fx.gid!==st.gid){fx.gid=st.gid;fx.ready=false;fx.h=[];fx.own=[];fx.money=[];fx.cur=null;Object.keys(pawnEls).forEach(k=>{pawnEls[k].remove();delete pawnEls[k]});Object.keys(pawnAt).forEach(k=>delete pawnAt[k])}}
+function fxReset(){if(fx.gid!==st.gid){Object.keys(bldEls).forEach(k=>{bldEls[k].remove();delete bldEls[k]});fx.gid=st.gid;fx.ready=false;fx.h=[];fx.own=[];fx.money=[];fx.cur=null;Object.keys(pawnEls).forEach(k=>{pawnEls[k].remove();delete pawnEls[k]});Object.keys(pawnAt).forEach(k=>delete pawnAt[k])}}
 /* ---------- figures on the board ---------- */
 let pawnLayer=null; const pawnEls={}, pawnAt={};
 function cellBox(q){const el=cellEls[q];return {x:el.offsetLeft,y:el.offsetTop,w:el.offsetWidth,h:el.offsetHeight}}
@@ -1227,6 +1281,25 @@ function turnFx(){
     setTimeout(()=>follow(pawnEls[st.cur]),300);
   }
   fx.cur=st.cur; fx.ready=true;
+}
+/* ---------- houses and hotels standing on the board ---------- */
+const HOUSE_SVG='<svg viewBox="0 0 24 26"><path d="M2 12 L9 6 L16 12 V24 H2 Z" fill="#37c96d" stroke="#0b3a1c" stroke-width="1"/><path d="M16 12 L22 9 V21 L16 24 Z" fill="#1c8c45" stroke="#0b3a1c" stroke-width="1"/><path d="M9 6 L15 3 L22 9 L16 12 Z" fill="#27a957" stroke="#0b3a1c" stroke-width="1"/><rect x="7" y="17" width="4" height="7" fill="#0b3a1c" opacity=".45"/></svg>';
+const HOTEL_SVG='<svg viewBox="0 0 32 26"><path d="M2 9 H24 V24 H2 Z" fill="#e5413f" stroke="#4d0b0b" stroke-width="1"/><path d="M24 9 L30 6 V21 L24 24 Z" fill="#a71f1f" stroke="#4d0b0b" stroke-width="1"/><path d="M2 9 L8 6 H30 L24 9 Z" fill="#c92b2b" stroke="#4d0b0b" stroke-width="1"/><g fill="#ffe7b3" opacity=".9"><rect x="5" y="12" width="3" height="3"/><rect x="11.5" y="12" width="3" height="3"/><rect x="18" y="12" width="3" height="3"/><rect x="5" y="18" width="3" height="3"/><rect x="18" y="18" width="3" height="3"/></g><rect x="11.5" y="18" width="3" height="6" fill="#4d0b0b" opacity=".6"/></svg>';
+let bldLayer=null; const bldEls={};
+function renderBuildings(){
+  const board=$('#board'); if(!bldLayer||!bldLayer.isConnected){bldLayer=document.createElement('div');bldLayer.className='blds';board.appendChild(bldLayer)}
+  const bar=board.offsetWidth*0.019, want={};
+  for(let i=0;i<40;i++){const o=st.own[i];if(!o||S[i].t!=='st'||!o.h)continue;
+    const n=o.h===5?1:o.h,sd=side(i),b=cellBox(i);
+    for(let k=0;k<n;k++){const f=(k+1)/(n+1);let x,y;
+      if(sd==='b'){x=b.x+b.w*f;y=b.y+bar*0.95}else if(sd==='t'){x=b.x+b.w*f;y=b.y+b.h-bar*0.05}
+      else if(sd==='l'){x=b.x+b.w-bar*0.5;y=b.y+b.h*f+bar*0.45}else{x=b.x+bar*0.5;y=b.y+b.h*f+bar*0.45}
+      want[i+'-'+k+(o.h===5?'H':'h')]={x,y,hotel:o.h===5};}
+  }
+  Object.keys(bldEls).forEach(k=>{if(!want[k]){bldEls[k].remove();delete bldEls[k]}});
+  Object.entries(want).forEach(([k,w])=>{let el=bldEls[k];
+    if(!el){el=document.createElement('div');el.className='bld'+(w.hotel?' ho':'');el.innerHTML=w.hotel?HOTEL_SVG:HOUSE_SVG;bldLayer.appendChild(el);bldEls[k]=el;if(fx.ready&&!reduced)el.classList.add('drop')}
+    el.style.transform='translate('+(w.x-el.offsetWidth/2)+'px,'+(w.y-el.offsetHeight*0.92)+'px)';});
 }
 /* ---------- camera: zoom on phones follows the action ---------- */
 function follow(el){
@@ -1324,7 +1397,7 @@ function syncModals(){
 function render(){
   if(!st)return;
   if(engine())updDeadline();
-  renderCells();renderCenter();renderPlayers();renderPortfolio();moneyFx();turnFx();renderActions();$('#act').insertAdjacentHTML('afterbegin','<div class="tbar" hidden><i></i><b></b></div>');renderLog();syncModals();renderRoom();
+  renderCells();renderCenter();renderPlayers();renderPortfolio();moneyFx();turnFx();renderActions();$('#act').insertAdjacentHTML('afterbegin','<div class="tbar" hidden><i></i><b></b></div>');renderLog();syncModals();renderRoom();renderMic();
   if(engine()){updDeadline();save();scheduleBot();broadcast()}
 }
 
@@ -1546,7 +1619,7 @@ function openRules(){
   '<h4>Si të fitosh</h4><p>Bëhu lojtari i fundit në lojë pasi të gjithë të tjerët falimentojnë. Bli prona, ndërto shtëpi dhe hotele dhe mblidh qira.</p>'+
   '<h4>Në radhën tënde</h4><ul><li>Prek zaret në mes të tabelës. Dora i tund dhe i hedh; shuma tregon sa hapa ecën.</li><li>Nëse kalon NISU merr '+eur(200)+'.</li><li>Dyshe: hidh përsëri. Tri dyshe radhazi: shko në burg.</li></ul>'+
   '<h4>Prona e lirë</h4><p>Bleje me çmimin e shënuar, vetëm me paratë që ke (nuk mund të hipotekosh për ta blerë). Nëse nuk e blen, del në ankand dhe çdo lojtar mund të ofrojë, edhe ti. Mund të blesh vetëm <b>një pronë për radhë</b>: nëse hedh dyshe dhe bie në një pronë tjetër të lirë, nuk mund ta blesh në të njëjtën radhë.</p>'+
-  '<h4>Dyshet dhe qiraja</h4><p>Kur hedh dyshe, nuk paguan qira në pronat ku ndalon gjatë radhës: <b>paguan vetëm aty ku ndalon në fund</b>, pas hedhjes që nuk është dyshe. Tri dyshe radhazi: shko në burg.</p>'+
+  '<h4>Dyshet</h4><p>Kur hedh dyshe, ndalesa pas asaj hedhjeje nuk vlen: aty <b>nuk blen dhe nuk paguan qira</b>. Blen ose paguan vetëm aty ku ndalon në fund, pas hedhjes që nuk është dyshe. Tri dyshe radhazi: shko në burg.</p>'+
   '<h4>Koha</h4><p>Çdo lojtar ka 20 sekonda për çdo vendim (mund ta ndryshosh kur krijon lojën). Kur mbaron koha, loja vendos vetë: hedh zaret, nuk e blen pronën (del në ankand), tërhiqet nga ankandi ose mbyll radhën.</p>'+
   '<h4>Prona e dikujt tjetër</h4><p>Paguaj qiranë. Me gjithë grupin e ngjyrës, qiraja pa ndërtesa dyfishohet. Pronat e hipotekuara nuk japin qira. Transportet: '+eur(25)+' / '+eur(50)+' / '+eur(100)+' / '+eur(200)+'. Shërbimet komunale: 4× ose 10× zaret.</p>'+
   '<h4>Ndërtimi</h4><p>Kur ke gjithë grupin, ndërto shtëpi në mënyrë të barabartë. Pas 4 shtëpive mund të ndërtosh hotel. Banka ka vetëm 32 shtëpi dhe 12 hotele. Ndërtesat i shet te Banka për gjysmën e çmimit.</p>'+
@@ -1619,7 +1692,7 @@ async function hostRoom(){
   leaveNet();
   role='host'; myDev='host';
   const code=randCode();
-  net={code,hs:rid(),seq:0,members:[{dev:'host',tok:'host',pid:'',name,voice:'off',seen:Date.now()}],bots:0,voice:{calls:{},on:false},note:'',status:'connecting',acts:new Set()};
+  net={code,hs:rid(),seq:0,members:[{dev:'host',tok:'host',pid:'',name,voice:'off',seen:Date.now(),fig:0}],bots:0,voice:{calls:{},on:false},note:'',status:'connecting',acts:new Set()};
   const myNet=net;
   net.bus=busOpen([code+'/g',code+'/a'],(sub,d)=>{if(net!==myNet)return;if(sub.endsWith('/a'))onVoicePacket(d);else onHostMsg(d)});
   net.bus.onUp=()=>{if(net!==myNet)return;const was=net.status;net.status='online';sendLobby();if(st&&st.online)broadcast(true);keepAwake();if(was!=='online'){if(st&&st.online)renderRoom();else openLobby()}};
@@ -1636,7 +1709,7 @@ function onHostMsg(d){
     if(!m){
       let seat=-1;
       if(st&&st.online){seat=st.players.findIndex(p=>p.dev===tok&&!p.out);if(seat<0)seat=st.players.findIndex(p=>p.away&&p.name===name&&!p.out)}
-      m={dev:tok,tok,pid:String(d.pid||''),name:seat>=0?P(seat).name:uniqueName(name),voice:'off',seen:Date.now(),spectator:!!(st&&st.online&&seat<0)};
+      m={dev:tok,tok,pid:String(d.pid||''),name:seat>=0?P(seat).name:uniqueName(name),voice:'off',seen:Date.now(),spectator:!!(st&&st.online&&seat<0),fig:freeFig()};
       net.members.push(m);
       if(seat>=0){const p=P(seat);p.dev=tok;p.bot=false;p.away=false;log(pname(seat)+' u lidh përsëri.')}
     }else if(d.pid)m.pid=String(d.pid);
@@ -1650,6 +1723,7 @@ function onHostMsg(d){
   }
   if(!m)return;
   if(d.t==='act'){if(net.acts.has(d.mid))return;net.acts.add(d.mid);handleAct(String(d.name),d.arg,tok);return}
+  if(d.t==='fig'){if(!(st&&st.online))setFig(m,+d.f);return}
   if(d.t==='pid'){m.pid=String(d.pid||'');sendLobby();return}
   if(d.t==='voice'){m.voice=['on','muted','off'].includes(d.v)?d.v:'off';sendLobby();renderRoom();if(modalState&&modalState.k==='lobby')openLobby();return}
   if(d.t==='bye'){dropMember(m);return}
@@ -1665,7 +1739,7 @@ function dropMember(m){
 }
 function sendLobby(){
   if(role!=='host'||!net)return;
-  busPub(net.bus,net.code+'/l',{t:'lobby',hs:net.hs,ts:Date.now(),code:net.code,members:net.members.map(m=>({dev:m.dev,pid:m.pid,name:m.name,voice:m.voice})),started:!!(st&&st.online),bots:net.bots},true);
+  busPub(net.bus,net.code+'/l',{t:'lobby',hs:net.hs,ts:Date.now(),code:net.code,members:net.members.map(m=>({dev:m.dev,pid:m.pid,name:m.name,voice:m.voice,fig:m.fig})),started:!!(st&&st.online),bots:net.bots},true);
 }
 let bcTimer=null,bcLast=0;
 function broadcast(now){
@@ -1757,17 +1831,26 @@ function shareRow(){const t=encodeURIComponent(inviteText());return '<div class=
   '<a class="btn" style="text-decoration:none;background:#6a55e8;border-color:#6a55e8;color:#fff" href="viber://forward?text='+t+'">Viber</a>'+(navigator.share?'<button class="btn" data-ui="shareLink">Ndaj…</button>':'')+'<button class="btn" data-ui="copyLink">Kopjo linkun</button><span class="note" id="copied"></span></div>'}
 function netStatusLine(){if(!net)return'';if(role==='host')return '<p class="note" style="margin-top:6px">'+(net.status==='online'?'<b style="color:var(--ok)">● Loja është online</b>':'<b style="color:var(--danger)">● Duke u lidhur…</b>')+' · Mbaje këtë faqe hapur. Pasi ta dërgosh linkun në WhatsApp, kthehu këtu: loja lidhet vetë.</p>';
   return net.note?'<p class="note" style="margin-top:6px;color:var(--danger)">'+esc(net.note)+'</p>':'<p class="note" style="margin-top:6px"><b style="color:var(--ok)">● I lidhur</b></p>'}
+function freeFig(){const used=net.members.map(m=>m.fig);for(let f=0;f<FIGS.length;f++)if(!used.includes(f))return f;return 0}
+function setFig(m,f){if(!m||!(f>=0&&f<FIGS.length))return;if(net.members.some(x=>x!==m&&x.fig===f))return;m.fig=f;sendLobby();if(modalState&&modalState.k==='lobby')openLobby()}
+function pickFig(f){f=+f;if(!net)return;if(role==='host')setFig(myMember(),f);else{const me=myMember();if(me&&!net.members.some(x=>x!==me&&x.fig===f)){me.fig=f;openLobby()}sendHost({t:'fig',f})}}
+function figPicker(){
+  const me=myMember(); if(!me||(st&&st.online))return '';
+  const k=net.members.indexOf(me), col=PCOL[Math.max(0,k)%PCOL.length];
+  return '<h2 style="margin-top:16px;font-family:var(--f-display);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Zgjidh figurën tënde</h2><div class="figgrid">'+
+    FIGS.map((F,f)=>{const owner=net.members.find(x=>x.fig===f&&x!==me);return '<button class="figbtn'+(me.fig===f?' on':'')+'" data-ui="pickFig" data-arg="'+f+'" '+(owner?'disabled':'')+' aria-pressed="'+(me.fig===f)+'">'+figSVG(f,col)+'<span>'+F.n+'</span>'+(owner?'<small>'+esc(owner.name)+'</small>':'')+'</button>'}).join('')+'</div>';
+}
 function openLobby(){
   if(!net)return; modalState={k:'lobby'};
   const host=role==='host';
-  const mem=net.members.map((m,k)=>'<div class="mem">'+micBadge(m)+'<span class="fig-pick">'+(k<6?figSVG(k,PCOL[k]):'')+esc(m.name)+(m.dev===myDev?' (ti)':'')+'</span></div>').join('')||'<p class="note">Duke pritur lojtarët…</p>';
+  const mem=net.members.map((m,k)=>'<div class="mem">'+micBadge(m)+'<span class="fig-pick">'+(k<6?figSVG(m.fig!=null?m.fig:k,PCOL[k]):'')+esc(m.name)+(m.dev===myDev?' (ti)':'')+'</span></div>').join('')||'<p class="note">Duke pritur lojtarët…</p>';
   const humans=net.members.length;
   showModal('<button class="btn sm x" data-ui="close">Mbyll</button><h3>Dhoma online</h3>'+
     '<p class="note">Kodi i lojës</p><div class="big-code">'+esc(net.code||'…')+'</div>'+netStatusLine()+
     '<p class="note" style="margin-top:10px">Dërgoju shokëve këtë link. Kur e hapin, hyjnë direkt në lojën tënde.</p>'+shareRow()+
     '<input readonly id="invite" value="'+esc(net.code?inviteLink():'')+'" aria-label="Linku i ftesës" style="font-size:12px">'+
     '<h2 style="margin-top:16px;font-family:var(--f-display);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Në dhomë</h2><div class="members">'+mem+'</div>'+
-    voiceButtons()+
+    figPicker()+voiceButtons()+
     (host?'<div class="field" style="max-width:240px;margin-top:14px"><label for="nbots">Lojtarë kompjuter</label><select id="nbots">'+[0,1,2,3,4,5].filter(n=>n+humans<=6).map(n=>'<option '+(n===net.bots?'selected':'')+'>'+n+'</option>').join('')+'</select></div>'+
       '<div class="field" style="max-width:240px;margin-top:12px"><label for="tsec2">Koha për çdo vendim</label><select id="tsec2">'+[[20,'20 sekonda'],[30,'30 sekonda'],[60,'60 sekonda'],[0,'Pa limit']].map(([v,l])=>'<option value="'+v+'" '+(v===(net.turnSec==null?20:net.turnSec)?'selected':'')+'>'+l+'</option>').join('')+'</select></div>'+
       '<div class="row" style="margin-top:14px"><button class="btn pri" data-ui="startOnline" '+(humans+net.bots<2?'disabled':'')+'>Fillo lojën ('+(humans+net.bots)+' lojtarë)</button></div>'
@@ -1778,9 +1861,9 @@ function openLobby(){
 }
 function startOnline(){
   if(role!=='host')return;
-  const cfg=net.members.filter(m=>!m.spectator).slice(0,6).map(m=>({name:m.name,bot:false,dev:m.dev,tok:m.tok}));
+  const cfg=net.members.filter(m=>!m.spectator).slice(0,6).map(m=>({name:m.name,bot:false,dev:m.dev,tok:m.tok,fig:m.fig}));
   const botNames=['Arbeni','Drita','Blerta','Gëzimi','Liridona'];
-  for(let k=0;k<net.bots&&cfg.length<6;k++)cfg.push({name:botNames[k]+' (bot)',bot:true,dev:'bot'});
+  for(let k=0;k<net.bots&&cfg.length<6;k++){const used=cfg.map(c=>c.fig);let f=0;while(used.includes(f)&&f<FIGS.length-1)f++;cfg.push({name:botNames[k]+' (bot)',bot:true,dev:'bot',fig:f})}
   newGame(cfg,true,net.turnSec==null?20:net.turnSec); sendLobby();
 }
 
@@ -1840,7 +1923,7 @@ async function joinVoice(){
     sink.gain.value=0; src.connect(proc); proc.connect(sink); sink.connect(actx.destination);
     v.nodes=[src,proc,sink]; proc.onaudioprocess=e=>voiceCapture(e.inputBuffer.getChannelData(0),actx.sampleRate);
   }
-  setMyVoice(v.listenOnly?'muted':'on');
+  setMyVoice(v.listenOnly?'muted':'on'); renderMic();
 }
 function voiceCapture(f,rate){
   const v=net&&net.voice; if(!v||!v.on||!v.stream)return;
@@ -1888,6 +1971,7 @@ function toggleMute(){
 }
 
 function renderRoom(){
+  renderMic();
   const el=$('#room'); if(!net){el.hidden=true;el.innerHTML='';return}
   el.hidden=false;
   const mem=net.members.map(m=>'<div class="mem">'+micBadge(m)+'<span>'+esc(m.name)+(m.dev===myDev?' (ti)':'')+(m.spectator?' · shikues':'')+'</span></div>').join('');
@@ -1896,20 +1980,54 @@ function renderRoom(){
     (net.note?'<p class="netmsg">'+esc(net.note)+'</p>':'')+(role==='host'&&net.status!=='online'?'<p class="netmsg">Duke u rilidhur me serverin…</p>':'');
 }
 
+/* ---------- phone sheets: menu, events, room ---------- */
+function openMenu(){
+  modalState={k:'menu'};
+  showModal('<button class="btn sm x" data-ui="close">Mbyll</button><h3>Menyja</h3><div class="menu-list">'+
+    (net?'<button class="btn" data-ui="roomSheet">Dhoma online · zëri</button>':'')+
+    '<button class="btn" data-ui="logs">Ngjarjet e lojës</button>'+
+    '<button class="btn" data-ui="sound">Efektet zanore: '+(soundOn?'po':'jo')+'</button>'+
+    '<button class="btn" data-ui="rules">Rregullat</button>'+
+    '<button class="btn" data-ui="setup">Lojë e re</button>'+
+    '<button class="btn" data-ui="credits">Autorët e fotove</button></div><p class="note" style="margin-top:12px">Versioni 18.11 (v11)</p>');
+}
+function openLog(){modalState={k:'logs'};showModal('<button class="btn sm x" data-ui="close">Mbyll</button><h3>Ngjarjet</h3><div class="log" style="max-height:none">'+st.log.slice(0,60).map(l=>'<div>'+l+'</div>').join('')+'</div>')}
+function openRoomSheet(){
+  if(!net)return; if(!(st&&st.online)){openLobby();return}
+  modalState={k:'roomSheet'};
+  const mem=net.members.map(m=>'<div class="mem">'+micBadge(m)+'<span>'+esc(m.name)+(m.dev===myDev?' (ti)':'')+(m.spectator?' · shikues':'')+'</span></div>').join('');
+  showModal('<button class="btn sm x" data-ui="close">Mbyll</button><h3>Dhoma '+esc(net.code||'')+'</h3>'+netStatusLine()+'<div class="members">'+mem+'</div>'+voiceButtons()+shareRow()+
+    '<div class="row" style="margin-top:10px"><button class="btn sm dan" data-ui="leave">Dil nga dhoma</button></div>');
+}
+function micButton(){const v=net&&net.voice;if(!v)return;if(!v.on)joinVoice();else if(v.listenOnly)openRoomSheet();else toggleMute()}
+function renderMic(){
+  const b=$('#micBtn'); if(!b)return; b.hidden=!net;
+  if(!net)return; const v=net.voice, live=v.on&&!v.muted&&!v.listenOnly;
+  b.setAttribute('aria-pressed',live); b.title=!v.on?'Fol me zë':v.muted?'Je i heshtur':'Mikrofoni ndezur';
+  b.querySelector('svg').innerHTML=(v.on&&!v.muted&&!v.listenOnly?'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>':'<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16"/>');
+}
+/* phones: go full screen when a game starts (Android); on iPhone explain Add to Home Screen once */
+function autoFull(){
+  if(!isPhone()||standalone)return;
+  const el=document.documentElement, req=el.requestFullscreen||el.webkitRequestFullscreen;
+  if(req&&!(document.fullscreenElement||document.webkitFullscreenElement)){try{const r=req.call(el,{navigationUI:'hide'});if(r&&r.catch)r.catch(()=>{})}catch(e){}return}
+  if(!req){let seen=false;try{seen=localStorage.getItem('pk-fshint')==='1';localStorage.setItem('pk-fshint','1')}catch(e){}if(!seen)setTimeout(fsHelp,400)}
+}
 /* ======================= EVENTS ======================= */
 const UI={
   deed:i=>openDeed(i), close:closeModal, rules:openRules, credits:openCredits,
+  pickFig:f=>pickFig(f), menu:()=>openMenu(), logs:()=>openLog(), roomSheet:()=>openRoomSheet(), mic:()=>micButton(),
   pf:i=>openPortfolio(i), pfSel:i=>{pf.sel=+i;if(modalState&&modalState.k==='pf')openPortfolio(+i);else renderPortfolio()},
   pfPin:()=>{pf.pin=!pf.pin;try{localStorage.setItem('pk-pfpin',pf.pin?'1':'0')}catch(e){}if(modalState&&modalState.k==='pf')closeModal();renderPortfolio();if(pf.pin){const el=$('#pfPanel');if(el&&isPhone())el.scrollIntoView({behavior:'smooth',block:'start'})}},
-  setup:()=>openSetup(), tab:t=>{modalState.tab=t;openSetup(t)}, start:startFromSetup,
+  setup:()=>openSetup(), tab:t=>{modalState.tab=t;openSetup(t)}, start:()=>{autoFull();startFromSetup()},
   trade:()=>openTrade(), propose:proposeTrade,
-  host:hostRoom, join:joinRoom, lobby:openLobby, startOnline,
+  host:()=>{autoFull();hostRoom()}, join:()=>{autoFull();joinRoom()}, lobby:openLobby, startOnline:()=>{autoFull();startOnline()},
   copyLink:()=>{const l=net&&net.code?inviteLink():'';const done=()=>{const c=$('#copied');if(c)c.textContent='U kopjua.';else toastRoom('Linku u kopjua.')};
     try{navigator.clipboard.writeText(l).then(done,()=>{const i=$('#invite');if(i){i.select()}else toastRoom(l)})}catch(e){toastRoom(l)}},
   leave:()=>{leaveNet();if(st&&st.online){newGame([{name:'Ti',bot:false},{name:'Arbeni',bot:true},{name:'Drita',bot:true}],false);openSetup('online')}},
   shareLink:()=>{try{navigator.share({title:'Pronat e Kosovës',text:'Eja luajmë Pronat e Kosovës! Kodi: '+net.code,url:inviteLink()}).catch(()=>{})}catch(e){}},
   voiceOn:joinVoice, voiceOff:()=>leaveVoice(false), mute:toggleMute,
-  sound:()=>{soundOn=!soundOn;try{localStorage.setItem('pk-sound',soundOn?'1':'0')}catch(e){}$('#sndBtn').setAttribute('aria-pressed',soundOn)},
+  sound:()=>{soundOn=!soundOn;try{localStorage.setItem('pk-sound',soundOn?'1':'0')}catch(e){}$('#sndBtn').setAttribute('aria-pressed',soundOn);if(modalState&&modalState.k==='menu')openMenu()},
   tilt:()=>setView('tilt',!view.tilt), zoom:()=>setView('zoom',!view.zoom), fullscreen:toggleFs,
 };
 document.addEventListener('click',e=>{
@@ -1929,18 +2047,18 @@ document.addEventListener('keydown',e=>{
   }
 });
 addEventListener('beforeunload',e=>{if(role==='host'&&net){e.preventDefault();e.returnValue=''}});
-addEventListener('resize',()=>{if(st&&!rollingAnim)restDice(st.dice,true);if(st){Object.keys(pawnAt).forEach(x=>delete pawnAt[x]);renderPawns()}});
+addEventListener('resize',()=>{if(st&&!rollingAnim)restDice(st.dice,true);if(st){Object.keys(pawnAt).forEach(x=>delete pawnAt[x]);renderPawns();renderBuildings()}});
 $('#sndBtn').setAttribute('aria-pressed',soundOn);
 /* ---------- view: 3D tilt, zoom, full screen ---------- */
 const isPhone=()=>matchMedia('(max-width:980px)').matches;
 const view={tilt:false,zoom:false};
 function loadPref(k,d){try{const v=localStorage.getItem('pk-'+k);return v==null?d:v==='1'}catch(e){return d}}
 function setView(k,on,quiet){
-  view[k]=on; if(!quiet){try{localStorage.setItem('pk-'+k,on?'1':'0')}catch(e){}}
+  view[k]=on; if(!quiet){try{localStorage.setItem('pk-'+(k==='tilt'?'tilt3':k),on?'1':'0')}catch(e){}}
   if(k==='tilt')$('#board').classList.toggle('tilt',on);
   if(k==='zoom')$('.board-wrap').classList.toggle('zoom',on);
   $('#'+k+'Btn').setAttribute('aria-pressed',on);
-  if(st){Object.keys(pawnAt).forEach(x=>delete pawnAt[x]);requestAnimationFrame(()=>{renderPawns();if(view.zoom)follow(pawnEls[st.cur])})}
+  if(st){Object.keys(pawnAt).forEach(x=>delete pawnAt[x]);requestAnimationFrame(()=>{renderPawns();renderBuildings();if(view.zoom)follow(pawnEls[st.cur])})}
 }
 const standalone=matchMedia('(display-mode: standalone)').matches||matchMedia('(display-mode: fullscreen)').matches||navigator.standalone;
 if(standalone)$('#fsBtn').hidden=true;
@@ -1958,7 +2076,7 @@ function fsHelp(){
    '<ol><li>Shtyp butonin <b>Ndaj</b> (katrori me shigjetë lart) në Safari ose Chrome.</li><li>Zgjidh <b>Shto në ekranin kryesor</b> (Add to Home Screen).</li><li>Hape lojën nga ikona e re.</li></ol>'+
    '<p class="note">Kthe telefonin horizontalisht për ta parë tabelën më të madhe.</p>');
 }
-setView('tilt',loadPref('tilt',!isPhone()),true);
+setView('tilt',loadPref('tilt3',true),true);
 setView('zoom',loadPref('zoom',false),true);
 /* the docked action bar on phones: keep the page padded by its height */
 try{new ResizeObserver(()=>{const a=$('#act');document.documentElement.style.setProperty('--dock-h',(getComputedStyle(a).position==='fixed'?a.offsetHeight:0)+'px')}).observe($('#act'))}catch(e){}

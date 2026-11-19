@@ -49,14 +49,15 @@ button:focus-visible,input:focus-visible,select:focus-visible,.cell:focus-visibl
 @media (max-width:980px){.app{grid-template-columns:minmax(0,1fr)}}
 
 /* ---------- board ---------- */
-.board{container-type:inline-size;width:min(100%,calc(100vh - 80px));aspect-ratio:1;max-width:100%;position:relative;
+.board{container-type:inline-size;--bw:min(calc(100cqw - 28px),calc(100vh - 80px));width:var(--bw);height:var(--bw);flex:0 0 auto;max-width:100%;position:relative;
   display:grid;grid-template-columns:1.6fr repeat(9,1fr) 1.6fr;grid-template-rows:1.6fr repeat(9,1fr) 1.6fr;
   background:var(--frame);gap:1px;border:.7cqw solid var(--frame);border-radius:1cqw;color:var(--tile-ink);
   box-shadow:0 2px 0 #0a1428,0 30px 60px -24px rgba(5,12,30,.65),0 10px 20px -10px rgba(5,12,30,.4);transition:transform .8s cubic-bezier(.2,.7,.2,1);transform-origin:50% 55%}
 .board.tilt{transform:rotateX(30deg) scale(.96);transform-style:preserve-3d;
-  box-shadow:0 30px 40px -10px rgba(0,0,0,.55),0 70px 70px -30px rgba(0,0,0,.5);position:absolute;inset:0;pointer-events:none;z-index:9;border-radius:inherit;
+  box-shadow:0 30px 40px -10px rgba(0,0,0,.55),0 70px 70px -30px rgba(0,0,0,.5)}
+.board::after{content:"";position:absolute;inset:0;pointer-events:none;z-index:9;border-radius:inherit;
   background:radial-gradient(120% 80% at 18% 0%,rgba(255,255,255,.22),rgba(255,255,255,0) 45%),radial-gradient(90% 70% at 100% 100%,rgba(0,0,0,.18),rgba(0,0,0,0) 60%)}
-.board-wrap{background:radial-gradient(130% 95% at 50% 40%,rgba(0,0,0,0) 55%,rgba(0,0,0,.35) 100%),repeating-linear-gradient(92deg,rgba(255,255,255,.035) 0 2px,rgba(0,0,0,.05) 2px 5px,rgba(255,255,255,0) 5px 11px),linear-gradient(180deg,var(--wood-3),var(--wood-1) 55%,var(--wood-2));
+.board-wrap{container-type:inline-size;background:radial-gradient(130% 95% at 50% 40%,rgba(0,0,0,0) 55%,rgba(0,0,0,.35) 100%),repeating-linear-gradient(92deg,rgba(255,255,255,.035) 0 2px,rgba(0,0,0,.05) 2px 5px,rgba(255,255,255,0) 5px 11px),linear-gradient(180deg,var(--wood-3),var(--wood-1) 55%,var(--wood-2));
   border-radius:18px;padding:14px;box-shadow:inset 0 2px 0 rgba(255,255,255,.12),0 10px 30px rgba(5,12,30,.25)}
 .blds{position:absolute;inset:0;pointer-events:none;z-index:5}
 .board.tilt .blds,.board.tilt .bld{transform-style:preserve-3d}
@@ -90,9 +91,26 @@ button:focus-visible,input:focus-visible,select:focus-visible,.cell:focus-visibl
 .smart{margin-top:10px;padding:10px 12px;border:1px dashed var(--accent);border-radius:10px;font-size:13px}
 .smart ul,.planlist{margin:6px 0 8px;padding-left:18px}
 .smart li,.planlist li{margin:2px 0}
+.cell.o-get{box-shadow:inset 0 0 0 .55cqw #22c55e;animation:opulse 1.2s ease-in-out infinite}
+.cell.o-give{box-shadow:inset 0 0 0 .55cqw #ef4444;animation:opulse 1.2s ease-in-out infinite}
+@keyframes opulse{50%{filter:brightness(1.18)}}
+.ocols{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0}
+.ocol{border:1px solid var(--line);border-radius:10px;padding:6px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.ocol.get{border-color:color-mix(in srgb,var(--ok) 60%,var(--line))}.ocol.give{border-color:color-mix(in srgb,var(--danger) 55%,var(--line))}
+.ohead{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}
+.ocol.get .ohead{color:var(--ok)}.ocol.give .ohead{color:var(--danger)}
+.oitem{display:grid;grid-template-columns:34px minmax(0,1fr) 6px;gap:7px;align-items:center;border:1px solid var(--line);background:var(--panel-2);color:var(--ink);border-radius:8px;padding:4px;text-align:left;font:inherit;min-width:0}
+.oitem i{width:34px;height:26px;border-radius:4px;background:center/cover no-repeat}
+.oitem span{min-width:0;display:flex;flex-direction:column;line-height:1.15}
+.oitem b{font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oitem small{font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.oitem em{width:6px;height:100%;border-radius:3px}
+.omoney{font-family:var(--f-mono);font-weight:700;font-size:15px;padding:4px 6px}
+#act .fair{margin:6px 0;padding:8px 10px}
+@media (prefers-reduced-motion:reduce){.cell.o-get,.cell.o-give{animation:none}}
 .menu-list{display:flex;flex-direction:column;gap:8px;margin-top:10px}
 .menu-list .btn{text-align:left;padding:12px 14px;font-size:15px}
-@media (max-width:980px){.board{width:min(100%,760px)}}
+@media (max-width:980px){.board{--bw:min(calc(100cqw - 28px),760px)}}
 .cell{background:var(--tile);position:relative;display:flex;overflow:hidden;cursor:pointer;min-width:0;min-height:0}
 .cell:hover{filter:brightness(1.05)}
 .cell.b{flex-direction:column}.cell.t{flex-direction:column-reverse}.cell.l{flex-direction:row-reverse}.cell.r{flex-direction:row}
@@ -324,7 +342,7 @@ input,select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(
 .ibtn:hover{border-color:var(--accent)}
 .only-touch{display:none}
 .board-wrap.zoom{overflow:auto;justify-content:flex-start;align-items:flex-start;max-height:calc(100dvh - var(--dock-h,0px) - 120px);border-radius:12px;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
-.board-wrap.zoom .board{width:190%;max-width:none;flex:0 0 auto}
+.board-wrap.zoom .board{--bw:calc(190cqw - 28px);max-width:none;flex:0 0 auto}
 .fig-pick{display:flex;align-items:center;gap:6px}
 .fig-pick svg{width:26px;height:34px;overflow:visible}
 .srow>span svg{width:28px;height:36px;overflow:visible}
@@ -340,12 +358,13 @@ input,select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(
   #playersPanel{order:2;flex:0 0 auto;padding:0;background:none;border:0}
   #playersPanel h2{display:none}
   .board-wrap{order:3;flex:1 1 auto;min-height:0;container-type:size;align-items:center;justify-content:center;padding:6px;border-radius:14px}
-  .board{width:min(100cqw,100cqh)}
+  .board{--bw:min(calc(100cqw - 12px),calc(100cqh - 12px))}
   .board.tilt{transform:rotateX(22deg) scale(.97)}
   .board.tilt .pawn svg,.board.tilt .mfloat,.board.tilt .bld img{position:relative;z-index:1;transform:rotateX(-22deg)}
   .board.tilt .bld.drop img{animation:bdrop .75s cubic-bezier(.3,1.5,.5,1)}
   .board-wrap.zoom{max-height:none;overflow:auto;align-items:flex-start;justify-content:flex-start}
-  .board-wrap.zoom .board{width:calc(min(100cqw,100cqh)*1.9)}
+  .board-wrap.zoom .board{--bw:calc(min(100cqw,100cqh)*1.9)}
+  #act.offer{height:40dvh}
   #act{order:4;flex:0 0 auto;height:28dvh;overflow:auto;overscroll-behavior:contain;margin:0 calc(-1*max(6px,env(safe-area-inset-right,0px))) 0 calc(-1*max(6px,env(safe-area-inset-left,0px)));
     border-radius:16px 16px 0 0;border-bottom:0;padding:10px max(14px,env(safe-area-inset-right,0px)) calc(10px + env(safe-area-inset-bottom,0px)) max(14px,env(safe-area-inset-left,0px));box-shadow:0 -10px 24px rgba(5,12,30,.22)}
   #act .tbar{height:16px;margin-bottom:6px}#act .tbar b{line-height:14px;font-size:11px}
@@ -377,7 +396,8 @@ input,select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(
   .desk-only,#pfPanel,#logPanel,.credline{display:none!important}
   .app{display:grid;grid-template-columns:auto minmax(0,1fr);height:100dvh;gap:8px;padding:4px max(8px,env(safe-area-inset-right,0px)) 4px max(8px,env(safe-area-inset-left,0px))}
   .board-wrap{padding:4px;border-radius:10px}
-  .board{width:calc(100dvh - 16px)}
+  .board{--bw:calc(100dvh - 16px)}
+  .board-wrap{container-type:normal}
   .board.tilt{transform:rotateX(18deg) scale(.97)}
   .board.tilt .pawn svg,.board.tilt .mfloat,.board.tilt .bld img{position:relative;z-index:1;transform:rotateX(-18deg)}
   .ibtn span{display:none}
@@ -411,7 +431,7 @@ input,select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(
     <section class="panel" id="pfPanel" hidden></section>
     <section class="panel" id="playersPanel"><h2>Lojtarët</h2><div class="players" id="players"></div></section>
     <section class="panel" id="logPanel"><h2>Ngjarjet</h2><div class="log" id="log"></div></section>
-    <p class="note credline" style="margin:0">Fotot: Wikimedia Commons. <button class="btn sm" data-ui="credits">Autorët e fotove</button> · Versioni 19.11 (v12)</p>
+    <p class="note credline" style="margin:0">Fotot: Wikimedia Commons. <button class="btn sm" data-ui="credits">Autorët e fotove</button> · Versioni 19.11 (v13)</p>
   </aside>
 </div>
 <div id="modal"></div>
@@ -1078,7 +1098,7 @@ function updDeadline(){
   if(who==null||P(who).bot){st.deadline=null;st.dkey=null;return}
   const a=st.pend;
   const key=[who,st.cur,st.phase,a?a.k:'',a&&a.k==='auction'?a.turn+'/'+a.bid+'/'+a.act.length:'',st.offer?'o':'',st.turnNo,st.rollSeq].join('|');
-  if(key!==st.dkey||!st.deadline){st.dkey=key;st.deadline=Date.now()+st.turnSec*1000}
+  if(key!==st.dkey||!st.deadline){st.dkey=key;st.deadline=Date.now()+(st.offer?Math.max(30,st.turnSec):st.turnSec)*1000}
 }
 function timeLeft(){if(!st||!st.deadline)return null;return st.deadline-(Date.now()+clockOff)}
 function onTimeout(){
@@ -1101,7 +1121,7 @@ setInterval(()=>{
   const left=timeLeft();
   document.querySelectorAll('.tbar').forEach(el=>{
     if(left==null){el.hidden=true;return}
-    el.hidden=false; const sec=Math.max(0,Math.ceil(left/1000)),frac=Math.max(0,Math.min(1,left/(st.turnSec*1000)));
+    el.hidden=false; const sec=Math.max(0,Math.ceil(left/1000)),frac=Math.max(0,Math.min(1,left/((st.offer?Math.max(30,st.turnSec):st.turnSec)*1000)));
     el.querySelector('i').style.width=(frac*100)+'%'; el.querySelector('b').textContent=sec+' s'; el.classList.toggle('low',sec<=5);
   });
   if(left!=null&&left>0&&left<=5000){const s=Math.ceil(left/1000);if(s!==lastTick){lastTick=s;if(isMine(decisionActor()))sfx('tick')}}
@@ -1232,6 +1252,7 @@ function renderCells(){
     const o=st.own[i],h0=o?o.h:0,ow=o?o.o:-1;
     const drop=fx.ready&&h0>(fx.h[i]||0);
     const h=cellHTML(i,drop);const el=cellEls[i];if(el._h!==h){el.innerHTML=h;el._h=h}el.classList.toggle('hl',i===hlI);
+    {const t=st.offer,me=t?(isMine(t.b)?t.b:t.a):null;el.classList.toggle('o-get',!!t&&(me===t.b?t.give:t.get).includes(i));el.classList.toggle('o-give',!!t&&(me===t.b?t.get:t.give).includes(i))}
     if(fx.ready&&ow>=0&&fx.own[i]!==ow&&!reduced){el.classList.remove('flash');void el.offsetWidth;el.classList.add('flash')}
     fx.h[i]=h0;fx.own[i]=ow;
   }
@@ -1463,7 +1484,8 @@ function buildActions(el){
   h='<h2>Radha e '+esc(p.name)+'</h2>';
   if(st.offer){
     const t=st.offer;
-    h+='<p class="lead">Oferta për marrëveshje te '+pname(t.b)+'.</p>'+(isMine(t.a)?'<div class="row"><button class="btn dan" data-act="tCancel">Anulo ofertën</button></div>':'<p class="note">Duke pritur përgjigjen…</p>');
+    if(isMine(t.b)){el.innerHTML=offerPanelHTML(t,t.b);return}
+    h+='<p class="lead">Oferta për marrëveshje te '+pname(t.b)+'.</p>'+offerItemsHTML(t,t.a)+(isMine(t.a)?'<div class="row"><button class="btn dan" data-act="tCancel">Anulo ofertën</button></div>':'<p class="note">Duke pritur përgjigjen…</p>');
     el.innerHTML=h;return;
   }
   const actor=a&&a.k==='debt'?a.pi:st.cur;
@@ -1496,15 +1518,16 @@ function buildActions(el){
   else h+='<p class="note hint" style="margin-top:12px">Ende nuk ke asnjë pronë.</p>';
   el.innerHTML=h;
 }
-function renderActions(){const box={innerHTML:''};buildActions(box);const h='<div class="tbar" hidden><i></i><b></b></div>'+box.innerHTML;const el=$('#act');if(el._h!==h){el.innerHTML=h;el._h=h}}
+function renderActions(){const box={innerHTML:''};buildActions(box);const h='<div class="tbar" hidden><i></i><b></b></div>'+box.innerHTML;const el=$('#act');if(el._h!==h){el.innerHTML=h;el._h=h}el.classList.toggle('offer',!!(st.offer&&isMine(st.offer.b)))}
 function renderLog(){const h=st.log.map(l=>'<div>'+l+'</div>').join('');const el=$('#log');if(el._h!==h){el.innerHTML=h;el._h=h}}
 function syncModals(){
   if(st.pend&&st.pend.k==='debt'&&isMine(st.pend.pi)&&st.winner==null){const key=st.turnNo+'|'+st.cur+'|'+st.pend.why+'|'+st.pend.list.reduce((x,y)=>x+y.amt,0);
     if(debtShown!==key){debtShown=key;if(!modalState||['deed','pf','logs','menu'].includes(modalState.k))openDebtAssist()}}
   else if(modalState&&modalState.k==='debt')closeModal();
   if(modalState&&modalState.k==='pf')openPortfolio(pf.sel);
-  if(st.offer&&isMine(st.offer.b)){ if(!modalState||modalState.k!=='offer')openOfferConfirm(); }
-  else if(modalState&&modalState.k==='offer')closeModal();
+  if(modalState&&modalState.k==='offer')closeModal();
+  if(st.offer&&isMine(st.offer.b)){const key=JSON.stringify(st.offer);if(offerSeen!==key){offerSeen=key;sfx('card');try{navigator.vibrate&&navigator.vibrate(120)}catch(e){}
+    if(modalState&&['trade','pf','menu','logs'].includes(modalState.k))closeModal()}}
   if(modalState&&modalState.k==='deed')openDeed(modalState.i);
 }
 let domPending=false;
@@ -1724,6 +1747,20 @@ function proposeTrade(){
   if(t.mGive>P(me).money){$('#terr').textContent='Nuk ke aq para.';return}
   if(t.mGet>P(b).money){$('#terr').textContent=P(b).name+' nuk ka aq para.';return}
   closeModal(); doAction('offer',t);
+}
+let offerSeen='';
+function offerItem(i,cls){const s=S[i],o=st.own[i];
+  return '<button class="oitem '+cls+'" data-ui="deed" data-arg="'+i+'" title="Shih letrën"><i style="'+(img(i)?bgimg(i):'background:'+(s.g?GR[s.g].c:'#13203a'))+'"></i><span><b>'+esc(s.n)+'</b><small>'+eur(s.p)+(o&&o.m?' · hipotekë':'')+(s.g?' · '+GR[s.g].n:'')+'</small></span><em style="background:'+(s.g?GR[s.g].c:'#8d99a8')+'"></em></button>'}
+/* what changes hands, seen from player `me` */
+function offerItemsHTML(t,me){
+  const getP=me===t.b?t.give:t.get, giveP=me===t.b?t.get:t.give, getM=me===t.b?t.mGive:t.mGet, giveM=me===t.b?t.mGet:t.mGive;
+  const col=(title,props,money,cls)=>'<div class="ocol '+cls+'"><div class="ohead">'+title+'</div>'+(props.map(i=>offerItem(i,cls)).join('')+(money?'<div class="omoney">'+eur(money)+'</div>':'')||'<div class="note">asgjë</div>')+'</div>';
+  return '<div class="ocols">'+col('Ti merr',getP,getM,'get')+col('Ti jep',giveP,giveM,'give')+'</div>';
+}
+function offerPanelHTML(t,me){
+  return '<h2>Ofertë nga '+esc(P(t.a).name)+'</h2>'+offerItemsHTML(t,me)+fairnessHTML(t,me)+
+    '<p class="note hint" style="margin:6px 0">Pronat e ofertës ndriçojnë në tabelë: <b style="color:var(--ok)">jeshile</b> merr, <b style="color:var(--danger)">e kuqe</b> jep. Prek njërën për ta parë.</p>'+
+    '<div class="row"><button class="btn pri" data-act="tAccept">Pranoj</button><button class="btn dan" data-act="tReject">Refuzoj</button><button class="btn sm" data-ui="pf" data-arg="'+t.a+'">Portofoli i '+esc(P(t.a).name)+'</button></div>';
 }
 function openOfferConfirm(){
   const t=st.offer; modalState={k:'offer'};
@@ -2109,7 +2146,7 @@ function openMenu(){
     '<button class="btn" data-ui="sound">Efektet zanore: '+(soundOn?'po':'jo')+'</button>'+
     '<button class="btn" data-ui="rules">Rregullat</button>'+
     '<button class="btn" data-ui="setup">Lojë e re</button>'+
-    '<button class="btn" data-ui="credits">Autorët e fotove</button></div><p class="note" style="margin-top:12px">Versioni 19.11 (v12)</p>');
+    '<button class="btn" data-ui="credits">Autorët e fotove</button></div><p class="note" style="margin-top:12px">Versioni 19.11 (v13)</p>');
 }
 function openLog(){modalState={k:'logs'};showModal('<button class="btn sm x" data-ui="close">Mbyll</button><h3>Ngjarjet</h3><div class="log" style="max-height:none">'+st.log.slice(0,60).map(l=>'<div>'+l+'</div>').join('')+'</div>')}
 function openRoomSheet(){

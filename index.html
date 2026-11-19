@@ -431,7 +431,7 @@ input,select{width:100%;padding:9px 10px;border-radius:8px;border:1px solid var(
     <section class="panel" id="pfPanel" hidden></section>
     <section class="panel" id="playersPanel"><h2>Lojtarët</h2><div class="players" id="players"></div></section>
     <section class="panel" id="logPanel"><h2>Ngjarjet</h2><div class="log" id="log"></div></section>
-    <p class="note credline" style="margin:0">Fotot: Wikimedia Commons. <button class="btn sm" data-ui="credits">Autorët e fotove</button> · Versioni 19.11 (v13)</p>
+    <p class="note credline" style="margin:0">Fotot: Wikimedia Commons. <button class="btn sm" data-ui="credits">Autorët e fotove</button> · Versioni 19.11 (v14)</p>
   </aside>
 </div>
 <div id="modal"></div>
@@ -508,6 +508,18 @@ const CARDS={
   {x:'Gjobë për tejkalim shpejtësie në autostradën Prishtinë–Prizren: €15.',a:'m',v:-15},
   {x:'U zgjodhe kryetar i bordit. Paguaj çdo lojtari €50.',a:'pe',v:50},
   {x:'Kredia jote e ndërtimit maturohet. Merr €150.',a:'m',v:150},
+  {x:'Fluturim nga Aeroporti i Prishtinës: shko te Aeroplani. Nëse kalon NISU, merr €200.',a:'to',v:35},
+  {x:'Pushime dimri! Shko te Brezovica. Nëse kalon NISU, merr €200.',a:'to',v:16},
+  {x:'Vizitë në Kalanë e Prizrenit. Shko atje; nëse kalon NISU, merr €200.',a:'to',v:29},
+  {x:'Rruga është e lirë: ec përpara 5 hapa.',a:'fw',v:5},
+  {x:'Bllokadë në rrugën Prishtinë–Ferizaj: humb radhën e ardhshme.',a:'skip'},
+  {x:'Kartë mikpritjeje: herën e ardhshme që bie në pronën e dikujt, nuk paguan qira. Mbaje këtë letër.',a:'nr'},
+  {x:'Ke energji sot! Pas kësaj hidh zaret edhe një herë.',a:'ra'},
+  {x:'Loto e Kosovës: hidh zaret – nëse del dyshe, fiton €300.',a:'lot',v:300},
+  {x:'Tatimi në pronë: paguaj €15 për çdo pronë që ke.',a:'ptax',v:15},
+  {x:'Komuna të jep leje ndërtimi: një shtëpi falas në grupin tënd më të mirë. Pa grup të plotë merr €100.',a:'fh',v:100},
+  {x:'Fitove maratonën në Parkun e Gërmisë: merr €75.',a:'m',v:75},
+  {x:'Gjobë parkimi në qendër të Prishtinës: €40.',a:'m',v:-40},
  ],
  ch:[
   {x:'Shko te NISU. Merr €200.',a:'to',v:0},
@@ -526,6 +538,18 @@ const CARDS={
   {x:'Riparime rrugësh: paguaj €40 për çdo shtëpi dhe €115 për çdo hotel.',a:'rep',v:[40,115]},
   {x:'Fitove vendin e dytë në festivalin e flijes. Merr €10.',a:'m',v:10},
   {x:'Trashëgon €100.',a:'m',v:100},
+  {x:'Mërgata erdhi për pushime dhe të solli dhurata: merr €100.',a:'m',v:100},
+  {x:'Dasmë në familje! Çdo lojtar të jep €20 si dhuratë.',a:'ce',v:20},
+  {x:'Solidaritet: lojtari më i pasur i jep €100 lojtarit më të varfër.',a:'rich',v:100},
+  {x:'Banka të fal interesin: shlyen falas hipotekën e pronës më të shtrenjtë. Pa hipotekë merr €50.',a:'um',v:50},
+  {x:'Qira nga banesat: merr €10 për çdo pronë që ke.',a:'per',v:10},
+  {x:'Stuhia dëmtoi çatinë: paguaj €80 për riparim.',a:'m',v:-80},
+  {x:'Flija jote fitoi çmimin e parë në festivalin e Rahovecit: merr €50.',a:'m',v:50},
+  {x:'Kartë mikpritjeje: herën e ardhshme që bie në pronën e dikujt, nuk paguan qira. Mbaje këtë letër.',a:'nr'},
+  {x:'Shkon për kafe te Shadërvani: ec përpara 3 hapa.',a:'fw',v:3},
+  {x:'Bursë studimi nga Komuna: merr €150.',a:'m',v:150},
+  {x:'Fatura e rrymës erdhi shumë e lartë: paguaj €60.',a:'m',v:-60},
+  {x:'Shko te NISU: merr €200 dhe €50 bonus nga Arka.',a:'to',v:0,b:50},
  ]};
 const PCOL=['#e63946','#1d7fd6','#22a05a','#ef9f0f','#8e44ad','#0f9ea8'];
 const ICON={
@@ -651,6 +675,7 @@ async function land(pi,opt={}){
     if(o.m){st.msg=esc(s.n)+' është e hipotekuar. Nuk paguhet qira.';log(pname(pi)+' qëndroi në '+esc(s.n)+' (e hipotekuar).');return}
     let ro=opt;
     if(s.t==='ut'&&opt.util10){const a=d6(),b=d6();ro={util10:true,utilRoll:a+b};log(pname(pi)+' hodhi '+(a+b)+' për shërbimin komunal.')}
+    if(p.noRent>0){p.noRent--;st.msg=esc(p.name)+' përdori kartën e mikpritjes: nuk paguan qira në '+esc(s.n)+'.';log(pname(pi)+' përdori kartën e mikpritjes në '+esc(s.n)+' – pa qira.');return}
     const r=rentOf(i,ro);
     st.msg=esc(p.name)+' paguan qira '+eur(r)+' te '+esc(P(o.o).name)+'.';
     pay(pi,[{to:o.o,amt:r}],'Qira për '+esc(s.n));
@@ -663,6 +688,13 @@ async function land(pi,opt={}){
   if(s.t==='jail'){st.msg=esc(p.name)+' është vetëm për vizitë në burg.';return}
   if(s.t==='go'){st.msg=esc(p.name)+' qëndron te NISU.';return}
 }
+/* a free house goes where it helps most: the strongest full set, built evenly */
+function freeHouseTarget(pi){
+  const c=propsOf(pi).filter(i=>{const s=S[i],o=st.own[i];if(s.t!=='st'||!ownsAll(pi,s.g))return false;const g=groupOf(s.g);
+    if(g.some(k=>st.own[k].m)||o.h>=5||o.h>Math.min(...g.map(k=>st.own[k].h)))return false;return o.h===4?st.hotels>0:st.houses>0});
+  if(!c.length)return null;
+  return c.sort((a,b)=>(S[b].r[Math.min(5,st.own[b].h+1)]-S[b].r[st.own[b].h])-(S[a].r[Math.min(5,st.own[a].h+1)]-S[a].r[st.own[a].h]))[0];
+}
 async function drawCard(pi,k){
   const d=st.decks[k]; const id=d.shift(); const c=CARDS[k][id];
   if(c.a!=='jc') d.push(id);
@@ -674,7 +706,17 @@ async function drawCard(pi,k){
     case 'm': if(c.v>0){p.money+=c.v;sfx('coin')}else pay(pi,[{to:null,amt:-c.v}],'Letër');break;
     case 'jc': p.cards.push({k,id});break;
     case 'jail': sendJail(pi);break;
-    case 'to': await moveTo(pi,c.v); await land(pi); break;
+    case 'to': await moveTo(pi,c.v); if(c.b){p.money+=c.b;log(pname(pi)+' mori bonus '+eur(c.b)+'.')} await land(pi); break;
+    case 'fw': await walk(pi,c.v); await land(pi); break;
+    case 'skip': p.skip=(p.skip||0)+1; log(pname(pi)+' do të humbë radhën e ardhshme.'); break;
+    case 'nr': p.noRent=(p.noRent||0)+1; log(pname(pi)+' ka një kartë mikpritjeje: herën tjetër s\'paguan qira.'); break;
+    case 'ra': st.extraRoll=true; break;
+    case 'lot': {const a=d6(),b=d6(); log(pname(pi)+' hodhi '+a+' + '+b+' në Loto.'); if(a===b){p.money+=c.v;sfx('win');log(pname(pi)+' fitoi '+eur(c.v)+' në Loto!');st.msg=esc(p.name)+' fitoi '+eur(c.v)+' në Loto!'}else{st.msg=esc(p.name)+' nuk fitoi në Loto ('+a+' + '+b+').'} break}
+    case 'ptax': {const amt=c.v*propsOf(pi).length; if(amt>0)pay(pi,[{to:null,amt}],'Tatimi në pronë'); else log(pname(pi)+' nuk ka prona – nuk paguan tatim.'); break}
+    case 'per': {const amt=c.v*propsOf(pi).length; p.money+=amt; log(pname(pi)+' mori '+eur(amt)+' qira nga banesat.'); break}
+    case 'fh': {const i=freeHouseTarget(pi); if(i!=null){const o=st.own[i]; if(o.h===4){st.hotels--;st.houses+=4}else st.houses--; o.h++; log(pname(pi)+' ndërtoi falas '+(o.h===5?'një hotel':'një shtëpi')+' në '+esc(S[i].n)+'.'); sfx('build')} else {p.money+=c.v; log(pname(pi)+' mori '+eur(c.v)+' nga Komuna.')} break}
+    case 'um': {const ms=propsOf(pi).filter(i=>st.own[i].m).sort((a,b)=>S[b].p-S[a].p); if(ms.length){st.own[ms[0]].m=false; log(pname(pi)+' shleu falas hipotekën e '+esc(S[ms[0]].n)+'.')} else {p.money+=c.v; log(pname(pi)+' mori '+eur(c.v)+' nga Banka.')} break}
+    case 'rich': {const a=active(); if(a.length>1){const r=a.reduce((x,y)=>P(y).money>P(x).money?y:x), q=a.reduce((x,y)=>P(y).money<P(x).money?y:x); if(r!==q)forcePay(r,c.v,q)} break}
     case 'back': await walk(pi,-3); await land(pi); break;
     case 'ntr': {let t=TR.find(x=>x>p.pos);if(t===undefined)t=TR[0];await moveTo(pi,t);await land(pi,{trMult:2});break}
     case 'nut': {let t=UT.find(x=>x>p.pos);if(t===undefined)t=UT[0];await moveTo(pi,t);await land(pi,{util10:true});break}
@@ -804,6 +846,7 @@ function cont(){
   if(st.winner!=null||st.pend){render();return}
   const p=curP(); if(p.out){endTurn(true);return}
   if(st.again&&!p.jail){st.phase='roll';st.msg=esc(p.name)+' hodhi dyshe – hidh përsëri!'}
+  else if(st.extraRoll&&!p.jail){st.extraRoll=false;st.phase='roll';st.msg=esc(p.name)+' ka një hedhje shtesë nga letra – hidh përsëri!'}
   else st.phase='end';
   render();
 }
@@ -811,8 +854,10 @@ function endTurn(force){
   if(!force&&(busy||st.phase!=='end'||st.pend||st.offer))return;
   if(st.winner!=null){render();return}
   st.offer=null;
-  let n=st.cur; do{n=(n+1)%st.players.length}while(P(n).out);
-  if(n<=st.cur) st.turnNo++;
+  st.extraRoll=false;
+  let n=st.cur;
+  for(let guard=0;guard<st.players.length*3;guard++){const prev=n;n=(n+1)%st.players.length;if(n<=prev)st.turnNo++;if(P(n).out)continue;
+    if(P(n).skip>0&&active().length>1){P(n).skip--;log(pname(n)+' humb radhën (bllokadë).');continue}break}
   st.cur=n;st.phase='roll';st.dbl=0;st.again=false;st.card=null;st.boughtTurn=false;
   st.msg='Radha e '+esc(P(n).name)+(P(n).jail?' (në burg)':'')+'. Kliko zaret.';
   render();
@@ -1140,7 +1185,7 @@ function pfHTML(pi){
   let houses=0,hotels=0; mine.forEach(i=>{const h=st.own[i].h;if(h===5)hotels++;else houses+=h});
   const head='<div class="pf-head"><div><div class="pf-k">Para në dorë</div><div class="pf-v">'+eur(p.money)+'</div></div><div><div class="pf-k">Vlera totale</div><div class="pf-v">'+eur(netWorth(pi))+'</div></div>'+
     '<div><div class="pf-k">Prona</div><div class="pf-v">'+mine.length+'</div></div><div><div class="pf-k">Shtëpi · Hotele</div><div class="pf-v">'+houses+' · '+hotels+'</div></div></div>'+
-    (p.cards.length?'<p class="note">Ka '+p.cards.length+' letër "Dil nga burgu falas".</p>':'')+(p.jail?'<p class="note">Është në burg.</p>':'')+(p.out?'<p class="note" style="color:var(--danger)">Ka falimentuar.</p>':'');
+    (p.cards.length?'<p class="note">Ka '+p.cards.length+' letër "Dil nga burgu falas".</p>':'')+(p.noRent?'<p class="note">Ka '+p.noRent+' kartë mikpritjeje (pa qira herën tjetër).</p>':'')+(p.skip?'<p class="note">Do të humbë radhën e ardhshme.</p>':'')+(p.jail?'<p class="note">Është në burg.</p>':'')+(p.out?'<p class="note" style="color:var(--danger)">Ka falimentuar.</p>':'');
   if(!mine.length)return tabs+head+'<p class="note" style="margin-top:12px">'+esc(p.name)+' ende nuk ka blerë asnjë pronë.</p>';
   const groups=[];
   Object.keys(GR).forEach(g=>{const ids=groupOf(g),own=ids.filter(i=>st.own[i]&&st.own[i].o===pi);if(own.length)groups.push({c:GR[g].c,t:'Grupi '+GR[g].n.toLowerCase(),ids:own,n:ids.length})});
@@ -1459,7 +1504,7 @@ function canRollNow(){return !busy&&!rollingAnim&&st.winner==null&&st.phase==='r
 function renderPlayers(){
   const ph=st.players.map((p,i)=>{
     let gp2=null;const chips=sortedProps(i).map(k=>{const ng=gp2!==null&&groupKey(k)!==gp2;gp2=groupKey(k);return '<span class="chip'+(st.own[k].m?' m':'')+(ng?' ng':'')+'" title="'+esc(S[k].n)+'" style="background:'+(S[k].g?GR[S[k].g].c:'#8d99a8')+'"></span>'}).join('');
-    const tags=(p.bot?' <span class="badge b">'+(p.away?'Shkëputur':'Bot')+'</span>':'')+(isMine(i)&&st.online?' <span class="badge y">Ti</span>':'')+(p.jail?' <span class="badge j">Në burg</span>':'')+(p.cards.length?' <span class="badge">Letër lirimi ×'+p.cards.length+'</span>':'');
+    const tags=(p.bot?' <span class="badge b">'+(p.away?'Shkëputur':'Bot')+'</span>':'')+(isMine(i)&&st.online?' <span class="badge y">Ti</span>':'')+(p.jail?' <span class="badge j">Në burg</span>':'')+(p.cards.length?' <span class="badge">Letër lirimi ×'+p.cards.length+'</span>':'')+(p.noRent?' <span class="badge y">Pa qira ×'+p.noRent+'</span>':'')+(p.skip?' <span class="badge j">Humb radhën</span>':'');
     return '<div class="pl'+(i===st.cur&&st.winner==null?' cur':'')+(p.out?' out':'')+'" data-ui="pf" data-arg="'+i+'" role="button" tabindex="0" title="Shih portofolin e '+esc(p.name)+'">'+figSVG(figOf(p,i),p.color,'pw')+
       '<div style="min-width:0"><div class="nm2">'+esc(p.name)+tags+'</div>'+(i===decisionActor()&&st.deadline?'<div class="tbar mini" hidden><i></i><b></b></div>':'')+'<div class="sub">'+esc(S[p.pos].n)+'</div><div class="chips">'+chips+'</div></div><span class="money">'+eur(p.money)+'</span></div>';
   }).join('');
@@ -2146,7 +2191,7 @@ function openMenu(){
     '<button class="btn" data-ui="sound">Efektet zanore: '+(soundOn?'po':'jo')+'</button>'+
     '<button class="btn" data-ui="rules">Rregullat</button>'+
     '<button class="btn" data-ui="setup">Lojë e re</button>'+
-    '<button class="btn" data-ui="credits">Autorët e fotove</button></div><p class="note" style="margin-top:12px">Versioni 19.11 (v13)</p>');
+    '<button class="btn" data-ui="credits">Autorët e fotove</button></div><p class="note" style="margin-top:12px">Versioni 19.11 (v14)</p>');
 }
 function openLog(){modalState={k:'logs'};showModal('<button class="btn sm x" data-ui="close">Mbyll</button><h3>Ngjarjet</h3><div class="log" style="max-height:none">'+st.log.slice(0,60).map(l=>'<div>'+l+'</div>').join('')+'</div>')}
 function openRoomSheet(){
